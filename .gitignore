@@ -1,3 +1,9 @@
 
 venv/
 *.pyc
+
+build/
+
+dist/
+
+tpa_map_functions.egg-info/

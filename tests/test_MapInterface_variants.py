@@ -8,7 +8,7 @@ path_root2Module = os.path.join(os.path.abspath(__file__).split("tpa_map_functio
 
 sys.path.append(path_root2Module)
 
-import tpa_map_functions.tpa_map_interface.MapInterface as MapInterface
+import tpa_map_functions.interface.MapInterface as MapInterface
 
 """
 Created by: Leonhard Hermansdorfer

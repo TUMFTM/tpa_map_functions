@@ -9,7 +9,7 @@ import trajectory_planning_helpers as tph
 path_root2Module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 sys.path.append(path_root2Module)
 
-import tpa_map_functions.tpa_map_interface.import_veh_dyn_info
+import tpa_map_functions.interface.import_veh_dyn_info
 
 """
 Created by: Leonhard Hermansdorfer
@@ -91,7 +91,7 @@ class MapInterface:
         # Read Data File Containing Tire Performance Assessment Map ----------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        tpamap, velocity_steps = tpa_map_functions.tpa_map_interface.import_veh_dyn_info.import_veh_dyn_info(
+        tpamap, velocity_steps = tpa_map_functions.interface.import_veh_dyn_info.import_veh_dyn_info(
             filepath2localgg=filepath2localgg)
 
         self.coordinates_sxy_m = tpamap[:, 0:3]
