@@ -3,10 +3,10 @@ import os
 import numpy as np
 
 # custom modules
-path_root2Module = os.path.join(os.path.abspath(__file__).split("tpa_map_functions")[0],
-                                "tpa_map_functions")
+path2module = os.path.join(os.path.abspath(__file__).split("tpa_map_functions")[0],
+                           "tpa_map_functions")
 
-sys.path.append(path_root2Module)
+sys.path.append(path2module)
 
 import tpa_map_functions.interface.MapInterface as MapInterface
 
@@ -17,7 +17,7 @@ Created on: 10.12.2019
 
 # Get data from TPA
 zmq_opts = {"ip": "localhost",          # IP of device running map interface
-            "port_data": "47208",       # port number, standard: "21212"
+            "port_data": "47208",       # port number, standard: "47208"
             "topic": "tpa_to_ltpl"      # zmq topic of publisher
             }
 
@@ -36,7 +36,7 @@ bool_enable_velocitydependence = [False,
                                   False,
                                   True]
 
-# run all tests with interpolation disabled (=False) and enabled (True) 
+# run all tests with interpolation disabled (=False) and enabled (True)
 for ele in [False, True]:
     counter = 0
 
@@ -45,8 +45,8 @@ for ele in [False, True]:
         print('----------------------------------------------------------')
         print('run test {} with file: {}\nInterpolation: {}'.format(counter + 1, filename_localgg[counter], ele))
 
-        MapInt = MapInterface.MapInterface(filepath2localgg=os.path.join(path_root2Module, 'example_files',
-                                                                         'veh_dyn_info', filename_localgg[counter]),
+        MapInt = MapInterface.MapInterface(filepath2localgg=os.path.join(path2module, 'inputs', 'veh_dyn_info',
+                                                                         filename_localgg[counter]),
                                            bool_enable_interpolation=ele,
                                            bool_enable_velocitydependence=bool_enable_velocitydependence[counter])
 
