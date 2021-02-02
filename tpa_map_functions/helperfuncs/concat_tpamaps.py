@@ -34,62 +34,85 @@ def concat_tpamaps(path2tpamaps: str(),
 
     # check arguments --------------------------------------------------------------------------------------------------
 
-    if len(list_tpamaps) > 10:
-        ValueError("tpa map functions: list 'list_tpamaps' must not exceed 10 elements")
-    elif len(time_interpsteps) > 10:
-        ValueError("tpa map functions: list 'time_interpsteps' must not exceed 10 elements")
-
-    while len(list_tpamaps) < 10:
-        list_tpamaps.append(False)
-
-    while len(time_interpsteps) < 10:
-        time_interpsteps.append(0.0)
-
     # initialize empty array to concatenate tpa maps
     tpamap = np.zeros((2502, 23))
 
-    # load and concatenate maps
-    k = 0
-    for map in list_tpamaps:
-        if map:
-            filepath2input_tpamaps = os.path.join(path2tpamaps, map)
+    if bool_enable_tpamaps:
 
-            with open(filepath2input_tpamaps, 'r') as fh:
-                csv_data_tpamap = np.genfromtxt(fh, delimiter=',')
-                tpamap_size = len(csv_data_tpamap)
+        print('tpa map functions: bool_enable_tpamaps is True -> specified tpa maps will be concatenated')
 
-        else:
-            break
+        if len(list_tpamaps) > 10 or len(list_tpamaps) == 0:
+            raise ValueError("tpa map functions: list 'list_tpamaps' must contain between one (min) and ten (max) tpa "
+                             "maps")
 
-        tpamap[2:tpamap_size + 2, 0] = csv_data_tpamap[:, 0]
-        tpamap[2:tpamap_size + 2, 1] = csv_data_tpamap[:, 1]
-        tpamap[2:tpamap_size + 2, 2] = csv_data_tpamap[:, 2]
-        tpamap[2:tpamap_size + 2, 3 + k * 2] = csv_data_tpamap[:, 3]
-        tpamap[2:tpamap_size + 2, 4 + k * 2] = csv_data_tpamap[:, 4]
-        k += 1
+        if len(time_interpsteps) > 10 or len(time_interpsteps) == 0:
+            raise ValueError("tpa map functions: list 'time_interpsteps' must contain between one (min) and ten (max) "
+                             "values")
+
+        if len(list_tpamaps) != len(time_interpsteps):
+            raise ValueError("tpa map functions: both lists 'list_tpamaps' and 'time_interpsteps' must have same "
+                             "number of entries")
+
+        if not np.isclose(a=time_interpsteps[0], b=0.0, atol=1e-7):
+            time_interpsteps[0] = 0.0
+            print('WARNING tpa map functions: time_interpsteps first entry is not zero, but will be set to zero')
+
+        if not np.all(np.diff(time_interpsteps) > 0):
+            raise ValueError("tpa map functions: list 'time_interpsteps' must only contain an increasing set of values")
+
+        while len(list_tpamaps) < 10:
+            list_tpamaps.append(False)
+
+        while len(time_interpsteps) < 10:
+            time_interpsteps.append(0.0)
+
+        # insert flag and timesteps into tpamap output array
+        tpamap[0, 0] = 1.0
+        tpamap[1, :len(time_interpsteps)] = time_interpsteps[:]
+
+        # load and concatenate maps
+        k = 0
+        for map in list_tpamaps:
+            if map:
+                filepath2input_tpamaps = os.path.join(path2tpamaps, map)
+
+                with open(filepath2input_tpamaps, 'r') as fh:
+                    csv_data_tpamap = np.genfromtxt(fh, delimiter=',')
+                    tpamap_size = len(csv_data_tpamap)
+
+            else:
+                break
+
+            tpamap[2:tpamap_size + 2, 0] = csv_data_tpamap[:, 0]
+            tpamap[2:tpamap_size + 2, 1] = csv_data_tpamap[:, 1]
+            tpamap[2:tpamap_size + 2, 2] = csv_data_tpamap[:, 2]
+            tpamap[2:tpamap_size + 2, 3 + k * 2] = csv_data_tpamap[:, 3]
+            tpamap[2:tpamap_size + 2, 4 + k * 2] = csv_data_tpamap[:, 4]
+            k += 1
+
+    else:
+
+        print('tpa map functions: bool_enable_tpamaps is False -> constant friction coeffs. will be applied')
+
+        tpamap[0, 0] = 0.0
+        tpamap[1, :10] = np.arange(0, 100, 10)
+        tpamap[2:, :] = 1.0
+        tpamap[2, 0] = 0.0
 
     # write data to tpamap_tum_mcs.csv
-    if bool_enable_tpamaps:
-        tpamap[0, 0] = 1.0
-    else:
-        tpamap[0, 0] = 0.0
-
-    tpamap[1, :len(time_interpsteps)] = time_interpsteps[:]
-
     with open(filepath2output, 'wb') as fh:
         np.savetxt(fh, tpamap, fmt='%0.4f', delimiter=',')
 
-    print('tpamap_tum_mcs.csv saved successfully')
+    print('tpa map functions: tpamap_tum_mcs.csv saved successfully')
 
 
 if __name__ == "__main__":
 
-    list_tpamaps = ['tpamap_berlin_1.csv',
-                    'tpamap_berlin_2.csv',
-                    'tpamap_berlin_3.csv',
-                    'tpamap_berlin_4.csv']
+    list_tpamaps = ["tpamap_berlin_1.csv",
+                    "tpamap_berlin_2.csv",
+                    "tpamap_berlin_3.csv"]
 
-    time_interpsteps = [0.0, 20.0, 35.0, 77.0]
+    time_interpsteps = [0.0, 20.0, 35.0]
 
     bool_enable_tpamaps = True
 
