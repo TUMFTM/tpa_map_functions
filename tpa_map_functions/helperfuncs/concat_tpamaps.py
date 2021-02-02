@@ -2,7 +2,7 @@ import os.path
 import numpy as np
 
 """
-Created by: Dominik Staerk (dominik.staerk@tum.de)
+Created by: Dominik Staerk
 Created on: 04.11.2020
 """
 

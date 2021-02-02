@@ -1,9 +1,9 @@
-
-venv/
-*.pyc
-
+# git ignore folders
 build/
-
 dist/
-
 tpa_map_functions.egg-info/
+venv/
+
+# git ignore files
+outputs/*.csv
+*.pyc

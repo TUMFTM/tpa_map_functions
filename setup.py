@@ -18,7 +18,7 @@ setuptools.setup(
     description="Functions to process local acceleration limitations for trajectory planning at TUM/FTM",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages(exclude=["*tests*", "*example_files*"]),
+    packages=setuptools.find_packages(exclude=["*inputs*", "*outputs*", "*tests*", "*resources*", "*venv*"]),
     install_requires=[
         'numpy>=1.18.1',
         'ad-interface-functions>=0.21',
