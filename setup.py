@@ -11,19 +11,20 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='tpa_map_functions',
-    version='0.2',
+    version='0.3',
     url='https://github.com/TUMFTM',
     author="Leonhard Hermansdorfer",
     author_email="leo.hermansdorfer@tum.de",
     description="Functions to process local acceleration limitations for trajectory planning at TUM/FTM",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages(exclude=["*inputs*", "*outputs*", "*tests*", "*resources*", "*venv*"]),
+    packages=setuptools.find_packages(exclude=["*inputs*", "*outputs*", "*tests*", "*resources*", "*venv*", "*tpa_map_gui*"]),
     install_requires=[
         'numpy>=1.18.1',
         'ad-interface-functions>=0.21',
         'trajectory-planning-helpers>=0.74',
-        'pyzmq>=19.0.2'
+        'pyzmq>=19.0.2',
+        'matplotlib>=3.3.1'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
