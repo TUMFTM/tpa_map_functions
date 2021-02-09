@@ -30,20 +30,34 @@ def import_veh_dyn_info(filepath2localgg: str = "") -> np.ndarray:
     if not filepath2localgg:
         raise ValueError('Missing path to file which contains vehicle acceleration limits!')
 
+    # read header from csv file
+    header_lines = []
+    bool_continue = True
+    with open(filepath2localgg, 'rb') as fh:
+
+        while bool_continue:
+            line = fh.readline()
+
+            if "#" in str(line):
+                header_lines.append(line)
+                bool_continue = True
+            else:
+                bool_continue = False
+
     # load localgg data from csv file
     with open(filepath2localgg, 'rb') as fh:
-        first_line = fh.readline()
         data_localggfile = np.loadtxt(fh, comments='#', delimiter=',')
 
     velocity_steps = []
 
     # read velocity steps from header
     try:
-        for ele in str(first_line).split(','):
-            if 'mps' in ele:
-                velocity_steps.append(float(ele.split('__')[1].split('mps')[0]))
+        for line in header_lines:
+            for ele in str(line).split(','):
+                if 'mps' in ele:
+                    velocity_steps.append(float(ele.split('__')[1].split('mps')[0]))
 
-        count_veldep_columns = len(velocity_steps)
+            count_veldep_columns = len(velocity_steps)
 
         if count_veldep_columns == 2:
             velocity_steps = []

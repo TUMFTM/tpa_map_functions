@@ -6,10 +6,10 @@ import tkinter as tk
 # User Input -----------------------------------------------------------------------------------------------------------
 
 # csv_filename - trackname in inputs-folder
-name_refline = "berlin"
+name_refline = "monteblanco"
 
 # stepsize_resample_m - desired stepsize for tpa-map resolution
-stepsize_resample_m = 10
+stepsize_resample_m = 25
 
 # gui_mode = 1: mode to customize local scaling factor for racetrack sections
 # gui_mode = 2: mode to customize ax and ay limits for racetrack sections
