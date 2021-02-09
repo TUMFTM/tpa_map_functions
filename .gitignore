@@ -3,6 +3,7 @@ build/
 dist/
 tpa_map_functions.egg-info/
 venv/
+.vscode/
 
 # git ignore files
 outputs/*.csv
