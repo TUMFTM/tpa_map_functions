@@ -425,9 +425,9 @@ class MapInterface:
                 idx_list = []
 
                 for row in s_actual_m:
-                    idx = np.argmin(np.abs(self.coordinates_sxy_m[:, 0] - row)) + 1
+                    idx = np.argmin(np.abs(self.coordinates_sxy_m[:, 0] - row)) + 0
 
-                    if (self.coordinates_sxy_m_extended[idx, 0] - row) > 0:
+                    if (self.coordinates_sxy_m_extended[idx + 1, 0] - row) > 0:
                         idx -= 1
 
                         if idx < 0:
