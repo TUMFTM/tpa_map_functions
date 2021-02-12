@@ -86,9 +86,10 @@ def save_tpamap(filepath2output_tpamap: str,
              + datetime.datetime.now().strftime("%H:%M:%S")
 
     try:
-        header = header + '\n' + 'track: ' + header_info['track'] + '\n' + 'GUI mode: ' + str(header_info['gui_mode'])
+        header = header + '\n' + 'track: ' + track_name + '\n' + 'GUI mode: ' + str(header_info['gui_mode'])
     except KeyError:
         pass
+    
     if header_info['gui_mode'] == 2:
         header = header + '\n' + 's_m,x_m,y_m,ax_max_mps2,ay_max_mps2'
     else:
@@ -108,25 +109,26 @@ if __name__ == '__main__':
     import sys
 
     # import custom modules
-    mod_performance_assessment_path = os.path.join(os.path.abspath(__file__).split('mod_performance_assessment')[0],
-                                                   'mod_performance_assessment')
+    path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 
-    sys.path.append(mod_performance_assessment_path)
+    sys.path.append(path2module)
 
-    import tire_perf_assessment
+    import tpa_map_functions
 
     bool_plot = True
     stepsize_resample_m = 10
     ax_max_tires_mps2 = 10.5
     ay_max_tires_mps2 = 10
 
-    header_custom = {'track': 'xyz'}
+    track_name = "dummy track"
+    header_custom = {"gui_mode": 2}
 
-    path_dict = tire_perf_assessment.helper_funcs_tpa.src.manage_paths.manage_paths()
+    filepath2ltpl_refline = os.path.join(path2module, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_berlin.csv')
+    filepath2output_tpamap = os.path.join(path2module, 'outputs', 'testmap.csv')
 
-    dict_output = tire_perf_assessment.helper_funcs_tpa.src.preprocess_ltplrefline.preprocess_ltplrefline(
-        filepath2ltpl_refline=path_dict['filepath2ltpl_refline'],
-        stepsize_resample_m=stepsize_resample_m)
+    dict_output = tpa_map_functions.helperfuncs.preprocess_ltplrefline.\
+        preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
+                               stepsize_resample_m=stepsize_resample_m)
 
     refline_resampled = dict_output['refline_resampled']['refline_resampled']
 
@@ -138,8 +140,9 @@ if __name__ == '__main__':
     # ax_max_tires_mps2 = np.asarray(ax_max_tires_mps2)
     # ay_max_tires_mps2 = np.asarray(ay_max_tires_mps2)
 
-    save_tpamap_fromfile(filepath2output_tpamap=path_dict['filepath2output_tpamap'],
+    save_tpamap_fromfile(filepath2output_tpamap=filepath2output_tpamap,
                          coordinates_sxy_m=refline_resampled,
-                         ax_max_tires_mps2=ax_max_tires_mps2,
-                         ay_max_tires_mps2=ay_max_tires_mps2,
+                         long_limit=ax_max_tires_mps2,
+                         lat_limit=ay_max_tires_mps2,
+                         track_name=track_name,
                          header_info=header_custom)
