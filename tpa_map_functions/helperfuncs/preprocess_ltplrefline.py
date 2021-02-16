@@ -260,32 +260,13 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
                 refline_resampled = np.column_stack((s, interpolated_points))
 
-            mean_diff_m = np.mean(diff_coordinates_m)
-            min_diff_m = np.min(diff_coordinates_m)
-            max_diff_m = np.max(diff_coordinates_m)
-            std_diff_m = np.std(diff_coordinates_m)
-
-            logger.debug('mean distance between coordinates: ' + str(round(mean_diff_m, 3)) + ' m; '
-                         + 'min. distance between coordinates: ' + str(round(min_diff_m, 3)) + ' m; '
-                         + 'max. distance between coordinates: ' + str(round(max_diff_m, 3)) + ' m; '
-                         + 'standard deviation of distance between coordinates: ' + str(round(std_diff_m, 3)) + ' m')
-
-            dict_output['refline_resampled'] = {'refline_resampled': refline_resampled,
-                                                'mean_diff_m': mean_diff_m,
-                                                'min_diff_m': min_diff_m,
-                                                'max_diff_m': max_diff_m,
-                                                'std_diff_m': std_diff_m}
-
     # resample reference line on basis of raceline
     elif mode_resample_refline == "var_steps":
-        pass
 
         test_kappa = [0] * kappa_rl.shape[0]
         test_ax = [0] * ax_rl.shape[0]
 
-        rl_data = np.hstack((kappa_rl[:, np.newaxis], ax_rl[:, np.newaxis]))
-
-        for int_row, ele_row in enumerate(rl_data):
+        for int_row, ele_row in enumerate(np.hstack((kappa_rl[:, np.newaxis], ax_rl[:, np.newaxis]))):
 
             if ele_row[0] < - 0.01:
                 test_kappa[int_row] = -1
@@ -297,25 +278,28 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
             elif ele_row[1] > 1.0:
                 test_ax[int_row] = 1
 
-        assert (kappa_rl.shape[0] == len(test_kappa))
-        assert (ax_rl.shape[0] == len(test_ax))
-
         test_kappa = np.asarray(test_kappa)
         test_ax = np.asarray(test_ax)
 
-        print('test')
+        # filter situations which occur only for a single data point
+        for int_count in range(3, len(test_kappa)):
 
-        testconcat = np.hstack((test_kappa[:, np.newaxis], test_ax[:, np.newaxis]))
+            if test_kappa[int_count] == test_kappa[int_count - 2] and test_kappa[int_count] != test_kappa[int_count - 1]:
+                test_kappa[int_count - 1] = test_kappa[int_count - 2]
+
+            if test_ax[int_count] == test_ax[int_count - 2] and test_ax[int_count] != test_ax[int_count - 1]:
+                test_ax[int_count - 1] = test_ax[int_count - 2]
+
+        # identify specific driving situations to resample reference line
 
         indices = []
-
         list_section_category = []
         section_category_prev = 0
         section_count = 0
 
         section_length_current = 0.0
         section_length_max = 200
-        section_length_min = 25
+        section_length_min = 15
 
         # section_categories:
         #   1 - pure braking
@@ -323,30 +307,35 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         #   3 - pure turn (negative: left, positive: right)
         #   4 - combined acceleration and turn (negative: left, positive: right)
         #   5 - pure acceleration
+        #   6 - high speed straight line
 
         diff_coordinates_m_ext = np.hstack((diff_coordinates_m, diff_coordinates_m[-1]))
 
-        for row_count, row_ele in enumerate(testconcat):
+        for int_count in range(len(test_kappa)):
 
-            if row_ele[0] == 0 and row_ele[1] == -1:
-                # pure braking
+            # pure braking
+            if test_kappa[int_count] == 0 and test_ax[int_count] == -1:
                 section_category = 1
 
-            elif row_ele[0] != 0 and row_ele[1] == -1:
-                # combined braking and turn
-                section_category = 2 * np.sign(row_ele[0])
+            # combined braking and turn
+            elif test_kappa[int_count] != 0 and test_ax[int_count] == -1:
+                section_category = 2 * np.sign(test_kappa[int_count])
 
-            elif row_ele[0] != 0 and row_ele[1] == 0:
-                # pure turning
-                section_category = 3 * np.sign(row_ele[0])
+            # pure turning
+            elif test_kappa[int_count] != 0 and test_ax[int_count] == 0:
+                section_category = 3 * np.sign(test_kappa[int_count])
 
-            elif row_ele[0] != 0 and row_ele[1] == 1:
-                # combined acceleration and turn
-                section_category = 4 * np.sign(row_ele[0])
+            # combined acceleration and turn
+            elif test_kappa[int_count] != 0 and test_ax[int_count] == 1:
+                section_category = 4 * np.sign(test_kappa[int_count])
 
-            elif row_ele[0] == 0 and row_ele[1] == 1:
-                # pure acceleration
+            # pure acceleration
+            elif test_kappa[int_count] == 0 and test_ax[int_count] == 1:
                 section_category = 5
+
+            # high speed straight line
+            elif test_kappa[int_count] == 0 and test_ax[int_count] == 0 and vel_rl[int_count] > 40:
+                section_category = 6
 
             else:
                 section_category = -100
@@ -360,21 +349,21 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
             if section_category_prev == section_category:
 
                 if section_length_current < section_length_max:
-                    section_length_current += diff_coordinates_m_ext[row_count]
+                    section_length_current += diff_coordinates_m_ext[int_count]
 
                 else:
                     section_length_current = 0.0
-                    indices.append(row_count)
+                    indices.append(int_count)
 
             elif section_category_prev != section_category:
 
                 if section_length_current >= section_length_min:
                     section_length_current = 0.0
-                    indices.append(row_count)
+                    indices.append(int_count)
                     section_category_prev = section_category
 
                 else:
-                    section_length_current += diff_coordinates_m_ext[row_count]
+                    section_length_current += diff_coordinates_m_ext[int_count]
                     section_category = section_category_prev
 
             list_section_category.append(section_category)
@@ -387,8 +376,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         # plt.plot(s_refline_m, ax_rl)
         # plt.plot(s_refline_m, np.multiply(test_ax, 0.9))
         # plt.plot(s_refline_m, np.multiply(test_kappa, 0.8))
-        # plt.plot(s_refline_m, np.multiply(list_section_category, 1.0))
-        # for idx in indices: plt.vlines(refline_concat[idx, 0], -10, 10, colors='k')
+        # plt.step(s_refline_m, np.multiply(list_section_category, 1.0), where='post')
+        # for idx in indices: plt.vlines(refline_concat[idx, 0], -10, 10, colors='k', linestyle='--')
         # plt.grid()
         # plt.show()
 
@@ -397,11 +386,25 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
         refline_resampled = refline_concat[indices, :]
 
-        dict_output['refline_resampled'] = {'refline_resampled': refline_resampled}
-        #                             'mean_diff_m': mean_diff_m,
-        #                             'min_diff_m': min_diff_m,
-        #                             'max_diff_m': max_diff_m,
-        #                             'std_diff_m': std_diff_m}
+        diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1))
+
+    if mode_resample_refline in ["const_steps", "var_steps"]:
+
+        mean_diff_m = np.mean(diff_coordinates_m)
+        min_diff_m = np.min(diff_coordinates_m)
+        max_diff_m = np.max(diff_coordinates_m)
+        std_diff_m = np.std(diff_coordinates_m)
+
+        logger.debug('mean distance between coordinates: ' + str(round(mean_diff_m, 3)) + ' m; '
+                     + 'min. distance between coordinates: ' + str(round(min_diff_m, 3)) + ' m; '
+                     + 'max. distance between coordinates: ' + str(round(max_diff_m, 3)) + ' m; '
+                     + 'standard deviation of distance between coordinates: ' + str(round(std_diff_m, 3)) + ' m')
+
+        dict_output['refline_resampled'] = {'refline_resampled': refline_resampled,
+                                            'mean_diff_m': mean_diff_m,
+                                            'min_diff_m': min_diff_m,
+                                            'max_diff_m': max_diff_m,
+                                            'std_diff_m': std_diff_m}
 
     return dict_output
 
@@ -421,7 +424,7 @@ if __name__ == '__main__':
 
     bool_plot = True
 
-    filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_monteblanco.csv')
+    filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_modena.csv')
 
     output_data = preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
                                          mode_resample_refline="var_steps",
@@ -437,7 +440,7 @@ if __name__ == '__main__':
         plt.plot(refline_original[:, 0], refline_original[:, 1], 'k--', label='original reference line')
         plt.plot(refline_original[:, 0], refline_original[:, 1], 'kx', label='original reference line')
         plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'r', label='resampled reference line')
-        plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'rx', label='resampled reference line')
+        plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'ro', label='resampled reference line')
 
         plt.axis('equal')
         plt.legend()
