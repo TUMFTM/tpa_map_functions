@@ -12,6 +12,7 @@ Created on: 12.11.2019
 
 def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                            reference_line: np.array = None,
+                           mode_resample_refline: str = 'const_steps',
                            stepsize_resample_m: float = 0,
                            interpolation_method: str = 'slinear',
                            logger: object = None) -> dict:
@@ -24,6 +25,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     Input
     :param filepath2ltpl_refline:   path pointing to the file to be imported
     :param reference_line:          reference line containing xy-coordinates in meters [x_m, y_m]
+    :param mode_resample_refline:   mode for resampling reference line, options: "const_steps", "var_steps"
     :param stepsize_resample_m:     desired stepsize for resampled reference line in meters
     :param interpolation_method:    interpolation method used for resampling of reference line
     :param logger:                  logger object for handling logs within this function
@@ -57,6 +59,13 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                         'provide one input.')
         raise ValueError('neither path to reference line file nor reference line array provided!')
 
+    if reference_line is not None:
+        mode_resample_refline = "const_steps"
+
+    if mode_resample_refline not in ["const_steps", "var_steps"]:
+        logger.critical('ERROR: provided mode for resampling reference line is not valid!')
+        raise ValueError('provided mode for resampling reference line is not valid!')
+
     # load reference line from file or proceed with existing reference line
     if bool(filepath2ltpl_refline):
 
@@ -87,10 +96,13 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         length_rl = np.diff(csv_data_refline[:, 7])
 
         # get kappa at raceline points
-        #kappa_rl = csv_data_refline[:, 9] # noqa F841
+        kappa_rl = csv_data_refline[:, 9] # noqa F841
 
         # get velocity at raceline points
-        #vel_rl = csv_data_refline[:, 10] # noqa F841
+        vel_rl = csv_data_refline[:, 10] # noqa F841
+
+        # get long. acceleration at raceline points
+        ax_rl = csv_data_refline[:, 11] # noqa F841
 
         # TESTING
         # refline_coordinates = refline_coordinates[0:500, :]
@@ -163,97 +175,233 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     # Resample Reference Line ------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    if stepsize_resample_m >= 0.1:
+    # use reference line instead of raceline for further calculation
+    s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(refline[:, 0])),
+                                            np.square(np.diff(refline[:, 1]))), axis=0)))
 
-        # testing
-        # use reference line instead of raceline for further calculation
-        s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(refline[:, 0])),
-                                                np.square(np.diff(refline[:, 1]))), axis=0)))
+    s_refline_m = np.vstack((np.zeros(1), s_refline_m[:, np.newaxis]))
 
-        s_refline_m = np.vstack((np.zeros(1), s_refline_m[:, np.newaxis]))
+    refline_concat = np.hstack((s_refline_m, refline))
 
-        refline_concat = np.hstack((s_refline_m, refline))
+    diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_concat[:, 1:3], axis=0) ** 2, axis=1))
 
-        # check whether or not the provided stepsize is an even number; round to next int value if necessary
-        if stepsize_resample_m % 1 != 0:
-            logger.warning("resample stepsize has to be even! current value of stepsize_resample_m = "
-                           + str(stepsize_resample_m) + " m; continue with " + str(round(stepsize_resample_m)) + " m")
+    if mode_resample_refline == "const_steps":
 
-            stepsize_resample_m = int(round(stepsize_resample_m))
-
-        # check whether resampling is necessary or initial stepsize of raceline is already correct
-        diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_concat[:, 1:3], axis=0) ** 2, axis=1))
-
-        if abs((max(abs(diff_coordinates_m)) - stepsize_resample_m)) <= 0.2:
-            refline_resampled = refline_concat
+        if stepsize_resample_m <= 0.1:
+            logger.warning("desired stepsize for reference line resampling is below threshold "
+                           + "-> proceed without resampled reference line")
 
         else:
-            """ interpolation along a 2d curve
-            source: https://stackoverflow.com/questions/52014197/how-to-interpolate-a-2d-curve-in-python
-            """
 
-            # coordinates to interpolate
-            coordinates = refline_concat[:, 1:3]
+            # check whether or not the provided stepsize is an even number; round to next int value if necessary
+            if stepsize_resample_m % 1 != 0:
+                logger.warning("resample stepsize has to be even! current value of stepsize_resample_m = "
+                               + str(stepsize_resample_m) + " m; continue with " + str(round(stepsize_resample_m))
+                               + " m")
 
-            # linear length along the line:
-            distance = refline_concat[:, 0] / refline_concat[-1, 0]
+                stepsize_resample_m = int(round(stepsize_resample_m))
 
-            steps = int(refline_concat[-1, 0] // stepsize_resample_m + 1)
+                if np.isclose(stepsize_resample_m, 0, 1e-08):
+                    stepsize_resample_m += 1
 
-            alpha = np.linspace(0, 1, steps)
-
-            if interpolation_method == 'test':
-
-                interpolated_points = {}
-
-                # plot different interpolation methods for comparison
-                # Interpolation for different methods:
-                interpolations_methods = ['slinear', 'quadratic', 'cubic']
-                for method in interpolations_methods:
-                    interpolator = interp1d(distance, coordinates, kind=method, axis=0)
-                    interpolated_points[method] = interpolator(alpha)
-
-                # Graph:
-                plt.figure(figsize=(7, 7))
-                for method_name, curve in interpolated_points.items():
-                    plt.plot(*curve.T, '-', label=method_name)
-
-                plt.plot(refline_concat[:, 1], refline_concat[:, 2], 'ok', label='original points')
-                plt.axis('equal')
-                plt.legend()
-                plt.xlabel('x in meters')
-                plt.ylabel('y in meters')
-
-                plt.show()
-
-                return dict()
+            # check whether resampling is necessary or initial stepsize of raceline is already correct
+            if abs((max(abs(diff_coordinates_m)) - stepsize_resample_m)) <= 0.2:
+                refline_resampled = refline_concat
 
             else:
-                interpolator = interp1d(distance, coordinates, kind=interpolation_method, axis=0)
-                interpolated_points = interpolator(alpha)
+                """ interpolation along a 2d curve
+                source: https://stackoverflow.com/questions/52014197/how-to-interpolate-a-2d-curve-in-python
+                """
 
-            # calculate distance between resampled reference line coordinates
-            diff_coordinates_m = np.sqrt(np.sum(np.diff(interpolated_points, axis=0) ** 2, axis=1))
+                # coordinates to interpolate
+                coordinates = refline_concat[:, 1:3]
 
-            s = np.concatenate(([0], np.cumsum(diff_coordinates_m)))
+                # linear length along the line:
+                distance = refline_concat[:, 0] / refline_concat[-1, 0]
 
-            refline_resampled = np.column_stack((s, interpolated_points))
+                steps = int(refline_concat[-1, 0] // stepsize_resample_m + 1)
 
-        mean_diff_m = np.mean(diff_coordinates_m)
-        min_diff_m = np.min(diff_coordinates_m)
-        max_diff_m = np.max(diff_coordinates_m)
-        std_diff_m = np.std(diff_coordinates_m)
+                alpha = np.linspace(0, 1, steps)
 
-        logger.debug('mean distance between coordinates: ' + str(round(mean_diff_m, 3)) + ' m; '
-                     + 'min. distance between coordinates: ' + str(round(min_diff_m, 3)) + ' m; '
-                     + 'max. distance between coordinates: ' + str(round(max_diff_m, 3)) + ' m; '
-                     + 'standard deviation of distance between coordinates: ' + str(round(std_diff_m, 3)) + ' m')
+                if interpolation_method == 'test':
 
-        dict_output['refline_resampled'] = {'refline_resampled': refline_resampled,
-                                            'mean_diff_m': mean_diff_m,
-                                            'min_diff_m': min_diff_m,
-                                            'max_diff_m': max_diff_m,
-                                            'std_diff_m': std_diff_m}
+                    interpolated_points = {}
+
+                    # plot different interpolation methods for comparison
+                    # Interpolation for different methods:
+                    interpolations_methods = ['slinear', 'quadratic', 'cubic']
+                    for method in interpolations_methods:
+                        interpolator = interp1d(distance, coordinates, kind=method, axis=0)
+                        interpolated_points[method] = interpolator(alpha)
+
+                    # Graph:
+                    plt.figure(figsize=(7, 7))
+                    for method_name, curve in interpolated_points.items():
+                        plt.plot(*curve.T, '-', label=method_name)
+
+                    plt.plot(refline_concat[:, 1], refline_concat[:, 2], 'ok', label='original points')
+                    plt.axis('equal')
+                    plt.legend()
+                    plt.xlabel('x in meters')
+                    plt.ylabel('y in meters')
+
+                    plt.show()
+
+                    return dict()
+
+                else:
+                    interpolator = interp1d(distance, coordinates, kind=interpolation_method, axis=0)
+                    interpolated_points = interpolator(alpha)
+
+                # calculate distance between resampled reference line coordinates
+                diff_coordinates_m = np.sqrt(np.sum(np.diff(interpolated_points, axis=0) ** 2, axis=1))
+
+                s = np.concatenate(([0], np.cumsum(diff_coordinates_m)))
+
+                refline_resampled = np.column_stack((s, interpolated_points))
+
+            mean_diff_m = np.mean(diff_coordinates_m)
+            min_diff_m = np.min(diff_coordinates_m)
+            max_diff_m = np.max(diff_coordinates_m)
+            std_diff_m = np.std(diff_coordinates_m)
+
+            logger.debug('mean distance between coordinates: ' + str(round(mean_diff_m, 3)) + ' m; '
+                         + 'min. distance between coordinates: ' + str(round(min_diff_m, 3)) + ' m; '
+                         + 'max. distance between coordinates: ' + str(round(max_diff_m, 3)) + ' m; '
+                         + 'standard deviation of distance between coordinates: ' + str(round(std_diff_m, 3)) + ' m')
+
+            dict_output['refline_resampled'] = {'refline_resampled': refline_resampled,
+                                                'mean_diff_m': mean_diff_m,
+                                                'min_diff_m': min_diff_m,
+                                                'max_diff_m': max_diff_m,
+                                                'std_diff_m': std_diff_m}
+
+    # resample reference line on basis of raceline
+    elif mode_resample_refline == "var_steps":
+        pass
+
+        test_kappa = [0] * kappa_rl.shape[0]
+        test_ax = [0] * ax_rl.shape[0]
+
+        rl_data = np.hstack((kappa_rl[:, np.newaxis], ax_rl[:, np.newaxis]))
+
+        for int_row, ele_row in enumerate(rl_data):
+
+            if ele_row[0] < - 0.01:
+                test_kappa[int_row] = -1
+            elif ele_row[0] > 0.01:
+                test_kappa[int_row] = 1
+
+            if ele_row[1] < - 1.0:
+                test_ax[int_row] = -1
+            elif ele_row[1] > 1.0:
+                test_ax[int_row] = 1
+
+        assert (kappa_rl.shape[0] == len(test_kappa))
+        assert (ax_rl.shape[0] == len(test_ax))
+
+        test_kappa = np.asarray(test_kappa)
+        test_ax = np.asarray(test_ax)
+
+        print('test')
+
+        testconcat = np.hstack((test_kappa[:, np.newaxis], test_ax[:, np.newaxis]))
+
+        indices = []
+
+        list_section_category = []
+        section_category_prev = 0
+        section_count = 0
+
+        section_length_current = 0.0
+        section_length_max = 200
+        section_length_min = 25
+
+        # section_categories:
+        #   1 - pure braking
+        #   2 - comined braking and turn (negative: left, positive: right)
+        #   3 - pure turn (negative: left, positive: right)
+        #   4 - combined acceleration and turn (negative: left, positive: right)
+        #   5 - pure acceleration
+
+        diff_coordinates_m_ext = np.hstack((diff_coordinates_m, diff_coordinates_m[-1]))
+
+        for row_count, row_ele in enumerate(testconcat):
+
+            if row_ele[0] == 0 and row_ele[1] == -1:
+                # pure braking
+                section_category = 1
+
+            elif row_ele[0] != 0 and row_ele[1] == -1:
+                # combined braking and turn
+                section_category = 2 * np.sign(row_ele[0])
+
+            elif row_ele[0] != 0 and row_ele[1] == 0:
+                # pure turning
+                section_category = 3 * np.sign(row_ele[0])
+
+            elif row_ele[0] != 0 and row_ele[1] == 1:
+                # combined acceleration and turn
+                section_category = 4 * np.sign(row_ele[0])
+
+            elif row_ele[0] == 0 and row_ele[1] == 1:
+                # pure acceleration
+                section_category = 5
+
+            else:
+                section_category = -100
+
+            # only after first iteration
+            if section_category_prev == 0:
+                section_category_prev = section_category
+
+
+
+            if section_category_prev == section_category:
+
+                if section_length_current < section_length_max:
+                    section_length_current += diff_coordinates_m_ext[row_count]
+
+                else:
+                    section_length_current = 0.0
+                    indices.append(row_count)
+
+            elif section_category_prev != section_category:
+
+                if section_length_current >= section_length_min:
+                    section_length_current = 0.0
+                    indices.append(row_count)
+                    section_category_prev = section_category
+
+                else:
+                    section_length_current += diff_coordinates_m_ext[row_count]
+                    section_category = section_category_prev
+
+            list_section_category.append(section_category)
+
+
+        indices = [0] + indices
+        indices.append(refline_concat.shape[0] - 1)
+
+        # plt.figure()
+        # plt.plot(s_refline_m, ax_rl)
+        # plt.plot(s_refline_m, np.multiply(test_ax, 0.9))
+        # plt.plot(s_refline_m, np.multiply(test_kappa, 0.8))
+        # plt.plot(s_refline_m, np.multiply(list_section_category, 1.0))
+        # for idx in indices: plt.vlines(refline_concat[idx, 0], -10, 10, colors='k')
+        # plt.grid()
+        # plt.show()
+
+
+        # if track is closed an last == first section type -> concat
+
+        refline_resampled = refline_concat[indices, :]
+
+        dict_output['refline_resampled'] = {'refline_resampled': refline_resampled}
+        #                             'mean_diff_m': mean_diff_m,
+        #                             'min_diff_m': min_diff_m,
+        #                             'max_diff_m': max_diff_m,
+        #                             'std_diff_m': std_diff_m}
 
     return dict_output
 
@@ -267,17 +415,17 @@ if __name__ == '__main__':
     import sys
 
     # import custom modules
-    path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0],
-                            'tpa_map_functions')
+    path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 
     sys.path.append(path2tmf)
 
     bool_plot = True
 
-    filepath2ltpl_refline = os.path.join(path2tmf, 'example_files', 'traj_ltpl_cl', 'traj_ltpl_cl_berlin.csv')
+    filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_monteblanco.csv')
 
     output_data = preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
-                                         stepsize_resample_m=8.121358)
+                                         mode_resample_refline="var_steps",
+                                         stepsize_resample_m=11.11)
 
     if bool_plot and bool(output_data):
 
