@@ -28,9 +28,9 @@ logging.basicConfig(format='%(levelname)s:IN--%(funcName)s--: %(message)s', leve
 
 class Manager(tk.Canvas):
     def __init__(self,
-                 filepath2ltpl_refline: str,
+                 refline: np.array,
+                 bool_closedtrack: bool,
                  filepath2output_tpamap: str,
-                 stepsize_resample_m: float,
                  gui_mode: int,
                  csv_filename: str,
                  default: dict = dict(),
@@ -43,11 +43,12 @@ class Manager(tk.Canvas):
         :param master:
         :param kwargs:
         """
-        self.filepath2ltpl_refline = filepath2ltpl_refline
+        self.refline_resampled = refline
+        self.bool_closedtrack = bool_closedtrack
+
         self.filepath2output_tpamap = filepath2output_tpamap
         self.track_name = str(csv_filename)
         self.gui_mode = int(gui_mode)
-        self.stepsize_resample_m = float(stepsize_resample_m)
         self.default = default
         self.mean_lsc = default['mean_lsc']
         self.mean_acc = default['mean_acc']
@@ -58,6 +59,7 @@ class Manager(tk.Canvas):
 
         # set initial number of rows and columns -----------------------------------------------------------------------
         self.int_number_rows = 8
+
         if self.gui_mode == 1 or self.gui_mode == 2:
             self.int_number_columns = 4
         else:
@@ -67,42 +69,8 @@ class Manager(tk.Canvas):
         self.row_counter = 0
         self.entry_counter = 0
         self.entries = {}
-
         self.fig_handle = None
 
-        # load reference line
-        self.output_data = tmf.helperfuncs.preprocess_ltplrefline.\
-            preprocess_ltplrefline(filepath2ltpl_refline=self.filepath2ltpl_refline,
-                                   stepsize_resample_m=self.stepsize_resample_m)
-
-        refline_resampled = self.output_data['refline_resampled']['refline_resampled']
-        bool_closedtrack = self.output_data['bool_closedtrack']
-
-        # testing
-        if self.gui_mode == 2:
-            self.ax = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(refline_resampled)))
-            self.ay = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(refline_resampled)))
-            self.local_scaling = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(refline_resampled)))
-        else:
-            self.local_scaling_long = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(refline_resampled)))
-            self.local_scaling_lat = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(refline_resampled)))
-            self.local_scaling = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(refline_resampled)))
-
-        if self.gui_mode == 1:
-            self.refline_initial = np.hstack([refline_resampled, self.local_scaling, self.local_scaling_long,
-                                              self.local_scaling_lat])
-        elif self.gui_mode == 2:
-            self.refline_initial = np.hstack([refline_resampled, self.local_scaling, self.ax, self.ay])
-
-        self.bool_closedtrack = bool_closedtrack
-
-        self.refline_manip = self.refline_initial.copy()
 
         # set up main gui ----------------------------------------------------------------------------------------------
 
@@ -188,95 +156,91 @@ class Manager(tk.Canvas):
         self.name_prependix.grid(row=7)
 
         tk.Label(self.name_prependix,
-            text='enter tpamap_name-pendix (optional): ', relief='groove', width=30).pack(side="left")
+                 text='enter tpamap_name-pendix (optional): ', relief='groove', width=30).pack(side="left")
         e1 = tk.Entry(self.name_prependix, width=10)
         self.e1 = e1
         e1.pack(side='left', padx=5, pady=5)
         b4 = tk.Button(self.name_prependix, text="save map", command=self.save_map)
         b4.pack(side='left', padx=5, pady=5)
 
-        # plot figure
-        self.plot_tpamap(self.refline_initial)
+        # intialize tpa map with random values
+        self.randomize()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Class functions --------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
     def gui_mode_select_1(self):
-        self.__init__(
-            filepath2ltpl_refline=self.filepath2ltpl_refline,
-            filepath2output_tpamap=self.filepath2output_tpamap,
-            stepsize_resample_m=self.stepsize_resample_m,
-            gui_mode=1,
-            csv_filename=self.track_name,
-            default=self.default)
+        self.__init__(refline=self.refline_resampled,
+                      bool_closedtrack=self.bool_closedtrack,
+                      filepath2output_tpamap=self.filepath2output_tpamap,
+                      gui_mode=1,
+                      csv_filename=self.track_name,
+                      default=self.default)
 
     # ------------------------------------------------------------------------------------------------------------------
 
     def gui_mode_select_2(self):
-        self.__init__(
-            filepath2ltpl_refline=self.filepath2ltpl_refline,
-            filepath2output_tpamap=self.filepath2output_tpamap,
-            stepsize_resample_m=self.stepsize_resample_m,
-            gui_mode=2,
-            csv_filename=self.track_name,
-            default=self.default)
+        self.__init__(refline=self.refline_resampled,
+                      bool_closedtrack=self.bool_closedtrack,
+                      filepath2output_tpamap=self.filepath2output_tpamap,
+                      gui_mode=2,
+                      csv_filename=self.track_name,
+                      default=self.default)
 
     # ------------------------------------------------------------------------------------------------------------------
 
     def randomize(self):
-        refline_resampled = self.output_data['refline_resampled']['refline_resampled']
 
         if self.gui_mode == 2:
             self.ax = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(refline_resampled)))
+                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
             self.ay = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(refline_resampled)))
+                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
             self.local_scaling = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(refline_resampled)))
+                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
 
         else:
             self.local_scaling_long = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(refline_resampled)))
+                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
             self.local_scaling_lat = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(refline_resampled)))
+                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
             self.local_scaling = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(refline_resampled)))
+                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
 
         if self.gui_mode == 1:
             self.refline_initial = np.hstack(
-                [refline_resampled, self.local_scaling, self.local_scaling_long, self.local_scaling_lat])
+                [self.refline_resampled, self.local_scaling, self.local_scaling_long, self.local_scaling_lat])
         elif self.gui_mode == 2:
-            self.refline_initial = np.hstack([refline_resampled, self.local_scaling, self.ax, self.ay])
+            self.refline_initial = np.hstack([self.refline_resampled, self.local_scaling, self.ax, self.ay])
 
         self.update_figure()
 
     # ------------------------------------------------------------------------------------------------------------------
 
     def smooth(self):
-        refline_resampled = self.output_data['refline_resampled']['refline_resampled']
         random = np.random.rand() * 2 * math.pi
 
-        for row in range(len(refline_resampled)):
+        for row in range(len(self.refline_resampled)):
             if self.gui_mode == 2:
                 self.ax[row] = self.mean_acc + self.amplitude_acc * math.sin(
-                    (row / len(refline_resampled)) * 4 * math.pi + random)
+                    (row / len(self.refline_resampled)) * 4 * math.pi + random)
                 self.ay[row] = self.mean_acc + self.amplitude_acc * math.sin(
-                    (row / len(refline_resampled)) * 4 * math.pi + random)
+                    (row / len(self.refline_resampled)) * 4 * math.pi + random)
                 self.local_scaling[row] = self.mean_acc + self.amplitude_acc * math.sin(
-                    (row / len(refline_resampled)) * 4 * math.pi + random)
+                    (row / len(self.refline_resampled)) * 4 * math.pi + random)
             else:
                 self.local_scaling_long[row] = self.mean_lsc + self.amplitude_lsc * math.sin(
-                    (row / len(refline_resampled)) * 4 * math.pi + random)
+                    (row / len(self.refline_resampled)) * 4 * math.pi + random)
                 self.local_scaling_lat[row] = self.mean_lsc + self.amplitude_lsc * math.sin(
-                    (row / len(refline_resampled)) * 4 * math.pi + random)
+                    (row / len(self.refline_resampled)) * 4 * math.pi + random)
                 self.local_scaling[row] = self.mean_lsc + self.amplitude_lsc * math.sin(
-                    (row / len(refline_resampled)) * 4 * math.pi + random)
+                    (row / len(self.refline_resampled)) * 4 * math.pi + random)
 
         if self.gui_mode == 1:
             self.refline_initial = np.hstack(
-                [refline_resampled, self.local_scaling, self.local_scaling_long, self.local_scaling_lat])
+                [self.refline_resampled, self.local_scaling, self.local_scaling_long, self.local_scaling_lat])
         elif self.gui_mode == 2:
-            self.refline_initial = np.hstack([refline_resampled, self.local_scaling, self.ax, self.ay])
+            self.refline_initial = np.hstack([self.refline_resampled, self.local_scaling, self.ax, self.ay])
 
         self.update_figure()
 
@@ -559,7 +523,7 @@ class Manager(tk.Canvas):
     def plot_tpamap(self, refline_plot: np.array):
 
         local_scaling = refline_plot[:, 3]
-        refline_resampled = refline_plot[:, :6]
+        refline_plot = refline_plot[:, :6]
 
         # generate main plot -------------------------------------------------------------------------------------------
 
@@ -572,17 +536,17 @@ class Manager(tk.Canvas):
 
         plt.subplot(3, 1, (1, 2))
 
-        plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'k', label='resampled reference line')
+        plt.plot(refline_plot[:, 1], refline_plot[:, 2], 'k', label='resampled reference line')
 
-        plotting_distance_m = np.arange(0, refline_resampled[-1, 0], 100)
+        plotting_distance_m = np.arange(0, refline_plot[-1, 0], 100)
 
         for int_counter, ele in enumerate(plotting_distance_m):
-            array = np.asarray(refline_resampled[:, 0])
+            array = np.asarray(refline_plot[:, 0])
             idx = (np.abs(array - ele)).argmin()
 
-            plt.plot(refline_resampled[idx, 1], refline_resampled[idx, 2], 'bx')
+            plt.plot(refline_plot[idx, 1], refline_plot[idx, 2], 'bx')
             plt.annotate('s=' + str(plotting_distance_m.tolist()[int_counter]) + ' m',
-                         (refline_resampled[idx, 1], refline_resampled[idx, 2]),
+                         (refline_plot[idx, 1], refline_plot[idx, 2]),
                          xytext=(0, 30), textcoords='offset points', ha='center', va='bottom', color='blue',
                          bbox=dict(boxstyle='round,pad=0.2', fc='yellow', alpha=0.8),
                          arrowprops=dict(arrowstyle='->', color='b'))
@@ -591,7 +555,7 @@ class Manager(tk.Canvas):
         # This creates the points as a N x 1 x 2 array so that we can stack points
         # together easily to get the segments. The segments array for line collection
         # needs to be numlines x points per line x 2 (x and y)
-        points = refline_resampled[:, 1:3].reshape(-1, 1, 2)
+        points = refline_plot[:, 1:3].reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
         # Create the line collection object, setting the colormapping parameters.
@@ -618,8 +582,8 @@ class Manager(tk.Canvas):
 
         plt.subplot(3, 1, 3)
 
-        plt.plot(refline_resampled[:-1, 0], refline_resampled[:-1, 4], 'r', label='longitudinal')
-        plt.plot(refline_resampled[:-1, 0], refline_resampled[:-1, 5], 'b', label='lateral')
+        plt.step(refline_plot[:-1, 0], refline_plot[:-1, 4], 'r', where='post', label='longitudinal')
+        plt.step(refline_plot[:-1, 0], refline_plot[:-1, 5], 'b', where='post', label='lateral')
 
         plt.grid()
         plt.legend(loc='best')
