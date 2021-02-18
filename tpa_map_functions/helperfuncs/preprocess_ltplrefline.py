@@ -15,7 +15,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                            mode_resample_refline: str = 'const_steps',
                            stepsize_resample_m: float = 0,
                            interpolation_method: str = 'slinear',
-                           logger: object = None) -> dict:
+                           logger: object = None,
+                           bool_enable_debug: bool = False) -> dict:
     """
     Documentation
     This function reads the reference line file of also used in local trajectory module to obtain reference line,
@@ -37,6 +38,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     :return raceline_glob:          x,y-coordinates of global raceline
     :return bool_closedtrack:       boolean indicating whether race track is closed (True) or not (False)
     :return refline_resampled:      resampled reference line with reqeusted stepsize
+    :return bool_enable_debug:      enables debug mode and provides more data in output dictionary
     """
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -96,13 +98,16 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         length_rl = np.diff(csv_data_refline[:, 7])
 
         # get kappa at raceline points
-        kappa_rl = csv_data_refline[:, 9] # noqa F841
+        kappa_rl = csv_data_refline[:, 9]
 
         # get velocity at raceline points
-        vel_rl = csv_data_refline[:, 10] # noqa F841
+        vel_rl = csv_data_refline[:, 10]
 
         # get long. acceleration at raceline points
-        ax_rl = csv_data_refline[:, 11] # noqa F841
+        ax_rl = csv_data_refline[:, 11]
+
+        # calculate lateral acceleration
+        ay_rl = kappa_rl * vel_rl**2
 
         # TESTING
         # refline_coordinates = refline_coordinates[0:500, :]
@@ -116,13 +121,13 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
         # check whether race track is closed or not
         # calculate distance between first and last coordinate of reference line
-        distance_last2firstcoordinate_m = math.sqrt(np.power(refline_coordinates[0, 0]
-                                                             - refline_coordinates[-1, 0], 2)
-                                                    + np.power(refline_coordinates[0, 1]
-                                                               - refline_coordinates[-1, 1], 2))
+        distance_last2firstcoordinate_m = \
+            math.sqrt(np.power(refline_coordinates[0, 0] - refline_coordinates[-1, 0], 2)
+                      + np.power(refline_coordinates[0, 1] - refline_coordinates[-1, 1], 2))
 
         # calculate cumulative track length
         s = np.concatenate(([0], np.cumsum(length_rl)))
+
         # calculate coordinates of global raceline
         xy = refline_coordinates + normvec_normalized * alpha_mincurv[:, np.newaxis]
 
@@ -168,13 +173,6 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         diff_refline_m = np.diff(refline_coordinates[-2:, :], axis=0)[0]
         refline = np.vstack([refline_coordinates, refline_coordinates[-1] + diff_refline_m])
 
-    dict_output['refline'] = refline
-    dict_output['bool_closedtrack'] = bool_closedtrack
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Resample Reference Line ------------------------------------------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------
-
     # use reference line instead of raceline for further calculation
     s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(refline[:, 0])),
                                             np.square(np.diff(refline[:, 1]))), axis=0)))
@@ -183,8 +181,16 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
     refline_concat = np.hstack((s_refline_m, refline))
 
+    dict_output['refline'] = refline_concat
+    dict_output['bool_closedtrack'] = bool_closedtrack
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Resample Reference Line ------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
     diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_concat[:, 1:3], axis=0) ** 2, axis=1))
 
+    # resample reference line with constant step size ------------------------------------------------------------------
     if mode_resample_refline == "const_steps":
 
         if stepsize_resample_m <= 0.1:
@@ -260,44 +266,45 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
                 refline_resampled = np.column_stack((s, interpolated_points))
 
-    # resample reference line on basis of raceline
+    # resample reference line with variable step size on basis of raceline ---------------------------------------------
     elif mode_resample_refline == "var_steps":
 
-        test_kappa = [0] * kappa_rl.shape[0]
-        test_ax = [0] * ax_rl.shape[0]
+        ax_trigger = [0] * ax_rl.shape[0]
+        ay_trigger = [0] * ay_rl.shape[0]
 
-        for int_row, ele_row in enumerate(np.hstack((kappa_rl[:, np.newaxis], ax_rl[:, np.newaxis]))):
+        # detect situations where long. or lat. acceleration exceed a certain limit
+        for int_row, ele_row in enumerate(np.hstack((ax_rl[:, np.newaxis], ay_rl[:, np.newaxis]))):
 
-            if ele_row[0] < - 0.01:
-                test_kappa[int_row] = -1
-            elif ele_row[0] > 0.01:
-                test_kappa[int_row] = 1
+            if ele_row[0] < - 1.0:
+                ax_trigger[int_row] = -1
+            elif ele_row[0] > 1.0:
+                ax_trigger[int_row] = 1
 
             if ele_row[1] < - 1.0:
-                test_ax[int_row] = -1
+                ay_trigger[int_row] = -1
             elif ele_row[1] > 1.0:
-                test_ax[int_row] = 1
+                ay_trigger[int_row] = 1
 
-        test_kappa = np.asarray(test_kappa)
-        test_ax = np.asarray(test_ax)
+        ay_trigger = np.asarray(ay_trigger)
+        ax_trigger = np.asarray(ax_trigger)
 
         # filter situations which occur only for a single data point
-        for int_count in range(3, len(test_kappa)):
+        # TODO: this could be extended to more than one data point, e.g. 2 or 3 data points or even based on distance
+        for i_count in range(3, len(ay_trigger)):
 
-            if test_kappa[int_count] == test_kappa[int_count - 2] and test_kappa[int_count] != test_kappa[int_count - 1]:
-                test_kappa[int_count - 1] = test_kappa[int_count - 2]
+            if ax_trigger[i_count] == ax_trigger[i_count - 2] and ax_trigger[i_count] != ax_trigger[i_count - 1]:
+                ax_trigger[i_count - 1] = ax_trigger[i_count - 2]
 
-            if test_ax[int_count] == test_ax[int_count - 2] and test_ax[int_count] != test_ax[int_count - 1]:
-                test_ax[int_count - 1] = test_ax[int_count - 2]
+            if ay_trigger[i_count] == ay_trigger[i_count - 2] and ay_trigger[i_count] != ay_trigger[i_count - 1]:
+                ay_trigger[i_count - 1] = ay_trigger[i_count - 2]
 
         # identify specific driving situations to resample reference line
-
         indices = []
         list_section_category = []
+        list_sectcat_sparse = []
         section_category_prev = 0
-        section_count = 0
-
         section_length_current = 0.0
+
         section_length_max = 200
         section_length_min = 15
 
@@ -311,84 +318,113 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
         diff_coordinates_m_ext = np.hstack((diff_coordinates_m, diff_coordinates_m[-1]))
 
-        for int_count in range(len(test_kappa)):
+        for i_count in range(len(ay_trigger)):
 
             # pure braking
-            if test_kappa[int_count] == 0 and test_ax[int_count] == -1:
+            if ay_trigger[i_count] == 0 and ax_trigger[i_count] == -1:
                 section_category = 1
 
             # combined braking and turn
-            elif test_kappa[int_count] != 0 and test_ax[int_count] == -1:
-                section_category = 2 * np.sign(test_kappa[int_count])
+            elif ay_trigger[i_count] != 0 and ax_trigger[i_count] == -1:
+                section_category = 2 * np.sign(ay_trigger[i_count])
 
             # pure turning
-            elif test_kappa[int_count] != 0 and test_ax[int_count] == 0:
-                section_category = 3 * np.sign(test_kappa[int_count])
+            elif ay_trigger[i_count] != 0 and ax_trigger[i_count] == 0:
+                section_category = 3 * np.sign(ay_trigger[i_count])
 
             # combined acceleration and turn
-            elif test_kappa[int_count] != 0 and test_ax[int_count] == 1:
-                section_category = 4 * np.sign(test_kappa[int_count])
+            elif ay_trigger[i_count] != 0 and ax_trigger[i_count] == 1:
+                section_category = 4 * np.sign(ay_trigger[i_count])
 
             # pure acceleration
-            elif test_kappa[int_count] == 0 and test_ax[int_count] == 1:
+            elif ay_trigger[i_count] == 0 and ax_trigger[i_count] == 1:
                 section_category = 5
 
             # high speed straight line
-            elif test_kappa[int_count] == 0 and test_ax[int_count] == 0 and vel_rl[int_count] > 40:
+            elif ay_trigger[i_count] == 0 and ax_trigger[i_count] == 0 and vel_rl[i_count] > 40:
                 section_category = 6
 
             else:
                 section_category = -100
 
-            # only after first iteration
+            # only after first iteration: set value of previous section
             if section_category_prev == 0:
                 section_category_prev = section_category
 
-
-
+            # check whether or not category has changed to previous data point
             if section_category_prev == section_category:
 
+                # check whether current section length of same category exceeds max. section length
                 if section_length_current < section_length_max:
-                    section_length_current += diff_coordinates_m_ext[int_count]
+                    section_length_current += diff_coordinates_m_ext[i_count]
 
                 else:
                     section_length_current = 0.0
-                    indices.append(int_count)
+                    indices.append(i_count)
+                    list_sectcat_sparse.append(section_category)
 
             elif section_category_prev != section_category:
 
+                # check whether current section length of same category already exceeds min. section length
                 if section_length_current >= section_length_min:
                     section_length_current = 0.0
-                    indices.append(int_count)
+                    indices.append(i_count)
                     section_category_prev = section_category
+                    list_sectcat_sparse.append(section_category)
 
                 else:
-                    section_length_current += diff_coordinates_m_ext[int_count]
+                    section_length_current += diff_coordinates_m_ext[i_count]
                     section_category = section_category_prev
 
             list_section_category.append(section_category)
 
-
-        indices = [0] + indices
+        indices.insert(0, 0)
         indices.append(refline_concat.shape[0] - 1)
+        list_sectcat_sparse.insert(0, list_section_category[0])
+        list_sectcat_sparse.append(100)
 
-        # plt.figure()
-        # plt.plot(s_refline_m, ax_rl)
-        # plt.plot(s_refline_m, np.multiply(test_ax, 0.9))
-        # plt.plot(s_refline_m, np.multiply(test_kappa, 0.8))
-        # plt.step(s_refline_m, np.multiply(list_section_category, 1.0), where='post')
-        # for idx in indices: plt.vlines(refline_concat[idx, 0], -10, 10, colors='k', linestyle='--')
-        # plt.grid()
-        # plt.show()
+        # postprocess sections -----------------------------------------------------------------------------------------
+        prev = list_sectcat_sparse[0]
+        count = 1
 
+        for i_count in range(1, len(list_sectcat_sparse)):
 
-        # if track is closed an last == first section type -> concat
+            if list_sectcat_sparse[i_count] == prev:
+                count += 1
+
+            elif count > 1 and (list_sectcat_sparse[i_count] != prev or i_count == len(list_sectcat_sparse) - 1):
+                logger.debug("number of consecutive sections of type {}: {} sections".format(prev, count))
+                logger.debug("sections start at {} m, end at {}".format(refline_concat[indices[i_count - count], 0],
+                                                                        refline_concat[indices[i_count], 0]))
+
+                interp = np.linspace(refline_concat[indices[i_count - count], 0],
+                                     refline_concat[indices[i_count], 0],
+                                     count + 1)
+
+                # calculate indices which should be used for interpolated sections
+                for j_count in range(1, len(interp)):
+                    idx = np.argmin(np.abs(refline_concat[:, 0] - interp[j_count]))
+                    indices[i_count - count + j_count] = idx
+
+                count = 1
+                prev = list_sectcat_sparse[i_count]
+
+            else:
+                count = 1
+                prev = list_sectcat_sparse[i_count]
 
         refline_resampled = refline_concat[indices, :]
 
         diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1))
 
-    if mode_resample_refline in ["const_steps", "var_steps"]:
+        if bool_enable_debug:
+            dict_output['refline_resampled'] = {'ax_mps2': ax_rl,
+                                                'ay_mps2': ay_rl,
+                                                'ax_trigger': ax_trigger,
+                                                'ay_trigger': ay_trigger,
+                                                'list_section_category': list_section_category}
+
+    if mode_resample_refline in ["const_steps", "var_steps"] and bool_enable_debug:
 
         mean_diff_m = np.mean(diff_coordinates_m)
         min_diff_m = np.min(diff_coordinates_m)
@@ -400,11 +436,11 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                      + 'max. distance between coordinates: ' + str(round(max_diff_m, 3)) + ' m; '
                      + 'standard deviation of distance between coordinates: ' + str(round(std_diff_m, 3)) + ' m')
 
-        dict_output['refline_resampled'] = {'refline_resampled': refline_resampled,
-                                            'mean_diff_m': mean_diff_m,
-                                            'min_diff_m': min_diff_m,
-                                            'max_diff_m': max_diff_m,
-                                            'std_diff_m': std_diff_m}
+        dict_output['refline_resampled'].update({'refline_resampled': refline_resampled,
+                                                 'mean_diff_m': mean_diff_m,
+                                                 'min_diff_m': min_diff_m,
+                                                 'max_diff_m': max_diff_m,
+                                                 'std_diff_m': std_diff_m})
 
     return dict_output
 
@@ -414,31 +450,37 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 # ----------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
+    # Import necessary modules
     import os.path
-    import sys
 
-    # import custom modules
+    # User Input -------------------------------------------------------------------------------------------------------
+
+    track_name = 'IMS_2020_sim'
+    bool_enable_debug = True
+
+    mode_resample_refline = 'var_steps'
+    stepsize_resample_m = 11.11
+
+    # Preprocess Reference Line ----------------------------------------------------------------------------------------
+
     path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 
-    sys.path.append(path2tmf)
-
-    bool_plot = True
-
-    filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_modena.csv')
+    filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_' + track_name + '.csv')
 
     output_data = preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
-                                         mode_resample_refline="var_steps",
-                                         stepsize_resample_m=11.11)
+                                         mode_resample_refline=mode_resample_refline,
+                                         stepsize_resample_m=stepsize_resample_m,
+                                         bool_enable_debug=bool_enable_debug)
 
-    if bool_plot and bool(output_data):
+    if bool_enable_debug and bool(output_data):
 
         refline_original = output_data['refline']
         refline_resampled = output_data['refline_resampled']['refline_resampled']
 
         plt.figure(figsize=(7, 7))
 
-        plt.plot(refline_original[:, 0], refline_original[:, 1], 'k--', label='original reference line')
-        plt.plot(refline_original[:, 0], refline_original[:, 1], 'kx', label='original reference line')
+        plt.plot(refline_original[:, 1], refline_original[:, 2], 'k--', label='original reference line')
+        plt.plot(refline_original[:, 1], refline_original[:, 2], 'kx', label='original reference line')
         plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'r', label='resampled reference line')
         plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'ro', label='resampled reference line')
 
@@ -449,22 +491,47 @@ if __name__ == '__main__':
 
         plt.show()
 
-        # plot histogram containing distances between coordinate points
-        plt.figure()
+        if mode_resample_refline == "const_steps":
 
-        plt.hist(np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1)), bins=20)
+            # plot histogram containing distances between coordinate points
+            plt.figure()
 
-        plt.axvline(x=output_data['refline_resampled']['mean_diff_m'], color='g', label='mean')
-        plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
-                       + output_data['refline_resampled']['std_diff_m']), color='y', label='stand.dev.')
-        plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
-                       - output_data['refline_resampled']['std_diff_m']), color='y')
-        plt.axvline(x=output_data['refline_resampled']['min_diff_m'], color='r', label='min/max')
-        plt.axvline(x=output_data['refline_resampled']['max_diff_m'], color='r')
+            plt.hist(np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1)), bins=20)
 
-        plt.legend()
-        plt.grid()
-        plt.xlabel('distance between reference line coordinate points in meters')
-        plt.ylabel('bin count')
+            plt.axvline(x=output_data['refline_resampled']['mean_diff_m'], color='g', label='mean')
+            plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
+                        + output_data['refline_resampled']['std_diff_m']), color='y', label='stand.dev.')
+            plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
+                        - output_data['refline_resampled']['std_diff_m']), color='y')
+            plt.axvline(x=output_data['refline_resampled']['min_diff_m'], color='r', label='min/max')
+            plt.axvline(x=output_data['refline_resampled']['max_diff_m'], color='r')
 
-        plt.show()
+            plt.legend()
+            plt.grid()
+            plt.xlabel('distance between reference line coordinate points in meters')
+            plt.ylabel('bin count')
+
+            plt.show()
+
+        elif mode_resample_refline == "var_steps":
+
+            plt.figure()
+            plt.plot(refline_original[:, 0], output_data['refline_resampled']['ax_mps2'], label="long. acc.")
+            plt.plot(refline_original[:, 0], output_data['refline_resampled']['ay_mps2'], label="lat. acc.")
+
+            plt.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ax_trigger'], 0.9),
+                     label="trigger: long. acc.")
+            plt.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ay_trigger'], 0.8),
+                     label="trigger: lat. acc.")
+
+            plt.step(refline_original[:, 0],
+                     np.multiply(output_data['refline_resampled']['list_section_category'], 1.0), where='post',
+                     label="section type")
+
+            for s in refline_resampled[:, 0]: plt.vlines(s, -10, 10, colors='k', linestyle='--')
+            plt.grid()
+            plt.xlabel("track position in m")
+            plt.ylabel("acc./section type")
+
+            plt.legend()
+            plt.show()
