@@ -455,7 +455,7 @@ if __name__ == '__main__':
 
     # User Input -------------------------------------------------------------------------------------------------------
 
-    track_name = 'IMS_2020_sim'
+    track_name = 'modena'
     bool_enable_debug = True
 
     mode_resample_refline = 'var_steps'
@@ -516,22 +516,38 @@ if __name__ == '__main__':
         elif mode_resample_refline == "var_steps":
 
             plt.figure()
-            plt.plot(refline_original[:, 0], output_data['refline_resampled']['ax_mps2'], label="long. acc.")
-            plt.plot(refline_original[:, 0], output_data['refline_resampled']['ay_mps2'], label="lat. acc.")
 
-            plt.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ax_trigger'], 0.9),
+            ax1 = plt.subplot(2, 1, 1)
+            ax1.plot(refline_original[:, 0], output_data['refline_resampled']['ax_mps2'], label="long. acc.")
+            ax1.plot(refline_original[:, 0], output_data['refline_resampled']['ay_mps2'], label="lat. acc.")
+
+            for s in refline_resampled[:, 0]:
+                plt.vlines(s, -10, 10, colors='k', linestyle='--')
+
+            plt.grid()
+            plt.xlabel("track position in m")
+            plt.ylabel("long./lat. acc. in mps2")
+            plt.legend()
+
+            ax2 = plt.subplot(2, 1, 2, sharex=ax1)
+
+            ax2.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ax_trigger'], 0.9),
                      label="trigger: long. acc.")
-            plt.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ay_trigger'], 0.8),
+            ax2.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ay_trigger'], 0.8),
                      label="trigger: lat. acc.")
 
-            plt.step(refline_original[:, 0],
+            ax2.step(refline_original[:, 0],
                      np.multiply(output_data['refline_resampled']['list_section_category'], 1.0), where='post',
                      label="section type")
 
-            for s in refline_resampled[:, 0]: plt.vlines(s, -10, 10, colors='k', linestyle='--')
+            for s in refline_resampled[:, 0]:
+                plt.vlines(s, -7, 7, colors='k', linestyle='--')
+
+            plt.ylim([-7, 7])
+
             plt.grid()
             plt.xlabel("track position in m")
-            plt.ylabel("acc./section type")
+            plt.ylabel("section type")
 
             plt.legend()
             plt.show()
