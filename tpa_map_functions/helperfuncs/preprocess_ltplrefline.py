@@ -106,7 +106,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         # get long. acceleration at raceline points
         ax_rl = csv_data_refline[:, 11]
 
-        # calculate lateral acceleration
+        # calculate lateral acceleration at raceline points
         ay_rl = kappa_rl * vel_rl**2
 
         # TESTING - test an unclosed race track
@@ -123,22 +123,36 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         # ax_rl = ax_rl[0:idx_cut]
         # ay_rl = ay_rl[0:idx_cut]
 
-        # Check race track ---------------------------------------------------------------------------------------------
-
-        # calculate distance between first and last coordinate of reference line
-        distance_last2firstcoordinate_m = \
-            math.sqrt(np.power(refline_coordinates[0, 0] - refline_coordinates[-1, 0], 2)
-                      + np.power(refline_coordinates[0, 1] - refline_coordinates[-1, 1], 2))
-
-        # calculate coordinates of global raceline
+        # calculate coordinates of raceline
         xy = refline_coordinates + normvec_normalized * alpha_mincurv[:, np.newaxis]
 
-        # consider a reference line as not closed when distance between first and last entry is above 8 meters
-        if distance_last2firstcoordinate_m < 8:
+    else:
+        refline_coordinates = reference_line
+
+    # Check reference and race line ------------------------------------------------------------------------------------
+
+    # calculate distance between first and last coordinate of reference line
+    distance_last2firstcoordinate_m = \
+        math.sqrt(np.power(refline_coordinates[0, 0] - refline_coordinates[-1, 0], 2)
+                  + np.power(refline_coordinates[0, 1] - refline_coordinates[-1, 1], 2))
+
+    # consider a reference line as not closed when distance between first and last entry is above 8 meters
+    if distance_last2firstcoordinate_m < 8:
+        bool_closedtrack = True
+        refline = refline_coordinates
+
+        if bool(filepath2ltpl_refline):
             raceline_glob = np.column_stack((s_rl, xy))
 
-        else:
-            # add an additional entry at the end of each array (necessary for subsequent algorithms)
+    else:
+        bool_closedtrack = False
+
+        # add an additional entry at the end of each array (necessary for subsequent steps)
+
+        diff_refline_m = np.diff(refline_coordinates[-2:, :], axis=0)[0]
+        refline = np.vstack([refline_coordinates, refline_coordinates[-1] + diff_refline_m])
+
+        if bool(filepath2ltpl_refline):
             diff_raceline_m = np.diff(xy[-2:, :], axis=0)[0]
 
             raceline_glob = np.column_stack((np.vstack([s_rl[:, np.newaxis], 0]),
@@ -151,31 +165,11 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
             ax_rl = np.hstack([ax_rl, ax_rl[-1]])
             ay_rl = np.hstack([ay_rl, ay_rl[-1]])
 
+    if bool(filepath2ltpl_refline):
         dict_output = {'raceline_glob': raceline_glob,
                        'width_right': np.hstack([width_right, width_right[-1]]),
                        'width_left': np.hstack([width_left, width_left[-1]]),
                        'normvec_normalized': np.vstack([normvec_normalized, normvec_normalized[-1, :]])}
-
-    else:
-        refline_coordinates = reference_line
-
-    # check whether race track is closed or not
-    # calculate distance between first and last coordinate of reference line
-    distance_last2firstcoordinate_m = math.sqrt(np.power(refline_coordinates[0, 0] - refline_coordinates[-1, 0], 2)
-                                                + np.power(refline_coordinates[0, 1] - refline_coordinates[-1, 1], 2))
-
-    # consider a reference line as not closed when distance between first and last entry is above 8 meters
-    if distance_last2firstcoordinate_m < 8:
-        bool_closedtrack = True
-
-        refline = refline_coordinates
-
-    else:
-        bool_closedtrack = False
-
-        # add an additional entry at the end of each array (necessary for subsequent algorithms)
-        diff_refline_m = np.diff(refline_coordinates[-2:, :], axis=0)[0]
-        refline = np.vstack([refline_coordinates, refline_coordinates[-1] + diff_refline_m])
 
     # use reference line instead of raceline for further calculation
     s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(refline[:, 0])),
@@ -467,18 +461,35 @@ if __name__ == '__main__':
     mode_resample_refline = 'var_steps'
     stepsize_resample_m = 11.11
 
+    test_source = 'path'  # or 'path'
+
     # Preprocess Reference Line ----------------------------------------------------------------------------------------
 
     path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 
     filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_' + track_name + '.csv')
 
-    output_data = preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
-                                         mode_resample_refline=mode_resample_refline,
-                                         stepsize_resample_m=stepsize_resample_m,
-                                         bool_enable_debug=bool_enable_debug)
+    if test_source == 'file':
 
-    if bool_enable_debug and bool(output_data):
+        # load reference line
+        with open(filepath2ltpl_refline, 'r') as fh:
+            csv_data_refline = np.genfromtxt(fh, delimiter=';')
+
+        reference_line = csv_data_refline[:, 0:2]
+
+        mode_resample_refline = 'const_steps'
+
+        output_data = preprocess_ltplrefline(reference_line=reference_line,
+                                             stepsize_resample_m=stepsize_resample_m,
+                                             bool_enable_debug=bool_enable_debug)
+    else:
+
+        output_data = preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
+                                             mode_resample_refline=mode_resample_refline,
+                                             stepsize_resample_m=stepsize_resample_m,
+                                             bool_enable_debug=bool_enable_debug)
+
+    if bool_enable_debug:
 
         refline_original = output_data['refline']
         refline_resampled = output_data['refline_resampled']['refline_resampled']
