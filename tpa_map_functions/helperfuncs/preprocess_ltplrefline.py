@@ -14,6 +14,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                            reference_line: np.array = None,
                            mode_resample_refline: str = 'const_steps',
                            stepsize_resample_m: float = 0,
+                           section_length_limits_m: np.array = None,
                            interpolation_method: str = 'slinear',
                            logger: object = None,
                            bool_enable_debug: bool = False) -> dict:
@@ -28,8 +29,10 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     :param reference_line:          reference line containing xy-coordinates in meters [x_m, y_m]
     :param mode_resample_refline:   mode for resampling reference line, options: "const_steps", "var_steps"
     :param stepsize_resample_m:     desired stepsize for resampled reference line in meters
+    :param section_length_limits:   desired min. and max. sections lenghts when variable steps are activated
     :param interpolation_method:    interpolation method used for resampling of reference line
     :param logger:                  logger object for handling logs within this function
+    :param bool_enable_debug:       enables debug mode and provides more data in output dictionary
 
     Output
     :return refline:                x and y coordinate of refline
@@ -38,7 +41,6 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     :return raceline_glob:          x,y-coordinates of global raceline
     :return bool_closedtrack:       boolean indicating whether race track is closed (True) or not (False)
     :return refline_resampled:      resampled reference line with reqeusted stepsize
-    :return bool_enable_debug:      enables debug mode and provides more data in output dictionary
     """
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -67,6 +69,16 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     if mode_resample_refline not in ["const_steps", "var_steps"]:
         logger.critical('ERROR: provided mode for resampling reference line is not valid!')
         raise ValueError('provided mode for resampling reference line is not valid!')
+
+    if section_length_limits_m is None and mode_resample_refline == "var_steps":
+        mode_resample_refline = "const_steps"
+        logger.warning('WARNING: resampling mode is set to constant steps, '
+                       'because no min/max section lengths are provided')
+
+    if section_length_limits_m is not None and (np.any(np.less_equal(section_length_limits_m, 0))
+                                                or (section_length_limits_m[0] >= section_length_limits_m[1])):
+        logger.critical('ERROR: provided section length limits are not valid!')
+        raise ValueError('provided section length limits are not valid!')
 
     # load reference line from file or proceed with existing reference line
     if bool(filepath2ltpl_refline):
@@ -288,15 +300,58 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         ay_trigger = np.asarray(ay_trigger)
         ax_trigger = np.asarray(ax_trigger)
 
-        # filter situations which occur only for a single data point
-        # TODO: this could be extended to more than one data point, e.g. 2 or 3 data points or even based on distance
-        for i_count in range(3, len(ay_trigger)):
+        # filter situations which occur only for a predefined number of data points (to avoid single outliers)
 
-            if ax_trigger[i_count] == ax_trigger[i_count - 2] and ax_trigger[i_count] != ax_trigger[i_count - 1]:
-                ax_trigger[i_count - 1] = ax_trigger[i_count - 2]
+        # number of data points below which trigger points are "smoothed"
+        delay_axtrigger = 3
+        delay_aytrigger = 3
 
-            if ay_trigger[i_count] == ay_trigger[i_count - 2] and ay_trigger[i_count] != ay_trigger[i_count - 1]:
-                ay_trigger[i_count - 1] = ay_trigger[i_count - 2]
+        count = [1, 1]
+        prev = [0, 0]
+
+        for i_count in range(len(ax_trigger)):
+
+            if i_count == 0:
+                prev = [ax_trigger[i_count], ay_trigger[i_count]]
+
+            # check whether or not category has changed to previous data point
+            bool_expr = np.equal(prev, [ax_trigger[i_count], ay_trigger[i_count]])
+            if np.any(bool_expr):
+                count += 1 * bool_expr
+
+            bool_expr = np.logical_not(bool_expr)
+
+            if np.any(bool_expr):
+
+                # check whether current number of trigger points is below defined limit
+                if np.any(count < max(delay_axtrigger, delay_aytrigger)):
+
+                    # overwrite ax trigger points
+                    if count[0] < delay_axtrigger and bool_expr[0]:
+                        logger.debug("ax section at {} m is only {} steps long".format(s_refline_m[i_count - count[0]],
+                                                                                       count[0]))
+                        logger.debug("insert ax trigger: {}".format(ax_trigger[i_count - count[0] - 1]))
+
+                        ax_trigger[i_count - count[0]:i_count] = ax_trigger[i_count - count[0] - 1]
+                        count[0] = 1
+
+                    # overwrite ay trigger points
+                    if count[1] < delay_aytrigger and bool_expr[1]:
+                        logger.debug("ay section at {} m is only {} steps long".format(s_refline_m[i_count - count[1]],
+                                                                                       count[1]))
+                        logger.debug("insert ay trigger: {}".format(ay_trigger[i_count - count[1] - 1]))
+
+                        ay_trigger[i_count - count[1]:i_count] = ay_trigger[i_count - count[1] - 1]
+                        count[1] = 1
+
+                # reset counter if number of trigger points of one section is above defined limit
+                if np.logical_and(count[0] >= delay_axtrigger, bool_expr[0]):
+                    count[0] = 1
+                if np.logical_and(count[1] >= delay_aytrigger, bool_expr[1]):
+                    count[1] = 1
+
+            prev[0] = ax_trigger[i_count]
+            prev[1] = ay_trigger[i_count]
 
         # identify specific driving situations to resample reference line
         indices = []
@@ -305,8 +360,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         section_category_prev = 0
         section_length_current = 0.0
 
-        section_length_max = 200
-        section_length_min = 15
+        section_length_min = section_length_limits_m[0]
+        section_length_max = section_length_limits_m[1]
 
         # section_categories:
         #   1 - pure braking
@@ -436,11 +491,12 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                      + 'max. distance between coordinates: ' + str(round(max_diff_m, 3)) + ' m; '
                      + 'standard deviation of distance between coordinates: ' + str(round(std_diff_m, 3)) + ' m')
 
-        dict_output['refline_resampled'].update({'refline_resampled': refline_resampled,
-                                                 'mean_diff_m': mean_diff_m,
+        dict_output['refline_resampled'].update({'mean_diff_m': mean_diff_m,
                                                  'min_diff_m': min_diff_m,
                                                  'max_diff_m': max_diff_m,
                                                  'std_diff_m': std_diff_m})
+
+    dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
 
     return dict_output
 
@@ -460,6 +516,8 @@ if __name__ == '__main__':
 
     mode_resample_refline = 'var_steps'
     stepsize_resample_m = 11.11
+    section_length_min_m = 15
+    section_length_max_m = 200
 
     test_source = 'path'  # or 'path'
 
@@ -487,6 +545,7 @@ if __name__ == '__main__':
         output_data = preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
                                              mode_resample_refline=mode_resample_refline,
                                              stepsize_resample_m=stepsize_resample_m,
+                                             section_length_limits_m=[section_length_min_m, section_length_max_m],
                                              bool_enable_debug=bool_enable_debug)
 
     if bool_enable_debug:
