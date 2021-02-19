@@ -94,8 +94,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         # get raceline alpha
         alpha_mincurv = csv_data_refline[:, 6]
 
-        # get racline segment lengths
-        length_rl = np.diff(csv_data_refline[:, 7])
+        # get racline segments
+        s_rl = csv_data_refline[:, 7]
 
         # get kappa at raceline points
         kappa_rl = csv_data_refline[:, 9]
@@ -109,48 +109,52 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         # calculate lateral acceleration
         ay_rl = kappa_rl * vel_rl**2
 
-        # TESTING
-        # refline_coordinates = refline_coordinates[0:500, :]
-        # width_right = width_right[0:500]
-        # width_left = width_left[0:500]
-        # normvec_normalized = normvec_normalized[0:500, :]
-        # alpha_mincurv = alpha_mincurv[0:500]
-        # length_rl = length_rl[0:500]
+        # TESTING - test an unclosed race track
+        # idx_cut = 333
 
-        # Create output data -------------------------------------------------------------------------------------------
+        # refline_coordinates = refline_coordinates[0:idx_cut, :]
+        # width_right = width_right[0:idx_cut]
+        # width_left = width_left[0:idx_cut]
+        # normvec_normalized = normvec_normalized[0:idx_cut, :]
+        # alpha_mincurv = alpha_mincurv[0:idx_cut]
+        # s_rl = s_rl[0:idx_cut]
+        # kappa_rl = kappa_rl[0:idx_cut]
+        # vel_rl = vel_rl[0:idx_cut]
+        # ax_rl = ax_rl[0:idx_cut]
+        # ay_rl = ay_rl[0:idx_cut]
 
-        # check whether race track is closed or not
+        # Check race track ---------------------------------------------------------------------------------------------
+
         # calculate distance between first and last coordinate of reference line
         distance_last2firstcoordinate_m = \
             math.sqrt(np.power(refline_coordinates[0, 0] - refline_coordinates[-1, 0], 2)
                       + np.power(refline_coordinates[0, 1] - refline_coordinates[-1, 1], 2))
-
-        # calculate cumulative track length
-        s = np.concatenate(([0], np.cumsum(length_rl)))
 
         # calculate coordinates of global raceline
         xy = refline_coordinates + normvec_normalized * alpha_mincurv[:, np.newaxis]
 
         # consider a reference line as not closed when distance between first and last entry is above 8 meters
         if distance_last2firstcoordinate_m < 8:
-            raceline_glob = np.column_stack((s, xy))
+            raceline_glob = np.column_stack((s_rl, xy))
 
         else:
             # add an additional entry at the end of each array (necessary for subsequent algorithms)
             diff_raceline_m = np.diff(xy[-2:, :], axis=0)[0]
 
-            raceline_glob = np.column_stack((s, np.vstack([xy, xy[-1] + diff_raceline_m])))
+            raceline_glob = np.column_stack((np.vstack([s_rl[:, np.newaxis], 0]),
+                                             np.vstack([xy, xy[-1] + diff_raceline_m])))
+
             raceline_glob[-1, 0] = round(raceline_glob[-2, 0] + math.sqrt(np.sum(np.square(diff_raceline_m))), 7)
 
-            width_right = np.hstack([width_right, width_right[-1]])
-            width_left = np.hstack([width_left, width_left[-1]])
+            kappa_rl = np.hstack([kappa_rl, kappa_rl[-1]])
+            vel_rl = np.hstack([vel_rl, vel_rl[-1]])
+            ax_rl = np.hstack([ax_rl, ax_rl[-1]])
+            ay_rl = np.hstack([ay_rl, ay_rl[-1]])
 
-            normvec_normalized = np.vstack([normvec_normalized, normvec_normalized[-1, :]])
-
-        dict_output = {'width_right': width_right,
-                       'width_left': width_left,
-                       'normvec_normalized': normvec_normalized,
-                       'raceline_glob': raceline_glob}
+        dict_output = {'raceline_glob': raceline_glob,
+                       'width_right': np.hstack([width_right, width_right[-1]]),
+                       'width_left': np.hstack([width_left, width_left[-1]]),
+                       'normvec_normalized': np.vstack([normvec_normalized, normvec_normalized[-1, :]])}
 
     else:
         refline_coordinates = reference_line
@@ -189,6 +193,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     # ------------------------------------------------------------------------------------------------------------------
 
     diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_concat[:, 1:3], axis=0) ** 2, axis=1))
+
+    dict_output['refline_resampled'] = dict()
 
     # resample reference line with constant step size ------------------------------------------------------------------
     if mode_resample_refline == "const_steps":
@@ -418,11 +424,11 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1))
 
         if bool_enable_debug:
-            dict_output['refline_resampled'] = {'ax_mps2': ax_rl,
-                                                'ay_mps2': ay_rl,
-                                                'ax_trigger': ax_trigger,
-                                                'ay_trigger': ay_trigger,
-                                                'list_section_category': list_section_category}
+            dict_output['refline_resampled'].update({'ax_mps2': ax_rl,
+                                                     'ay_mps2': ay_rl,
+                                                     'ax_trigger': ax_trigger,
+                                                     'ay_trigger': ay_trigger,
+                                                     'list_section_category': list_section_category})
 
     if mode_resample_refline in ["const_steps", "var_steps"] and bool_enable_debug:
 
@@ -531,14 +537,14 @@ if __name__ == '__main__':
 
             ax2 = plt.subplot(2, 1, 2, sharex=ax1)
 
-            ax2.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ax_trigger'], 0.9),
-                     label="trigger: long. acc.")
-            ax2.plot(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ay_trigger'], 0.8),
-                     label="trigger: lat. acc.")
+            ax2.step(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ax_trigger'], 0.9),
+                     where='post', linewidth=2.0, label="trigger: long. acc.")
+            ax2.step(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ay_trigger'], 0.8),
+                     where='post', linewidth=2.0, label="trigger: lat. acc.")
 
             ax2.step(refline_original[:, 0],
                      np.multiply(output_data['refline_resampled']['list_section_category'], 1.0), where='post',
-                     label="section type")
+                     linewidth=2.0, label="section type")
 
             for s in refline_resampled[:, 0]:
                 plt.vlines(s, -7, 7, colors='k', linestyle='--')
