@@ -51,7 +51,7 @@ class MapInterface:
         :param bool_enable_velocitydependence: enables/disables (True/False) velocity dependent acceleration limits,
                                                defaults to False
         :type bool_enable_velocitydependence: bool, optional
-        
+
         Error
         :raises ValueError: [description]
         :raises ValueError: [description]
@@ -105,10 +105,12 @@ class MapInterface:
         # Check Localgg Data with Velocity Dependence ------------------------------------------------------------------
 
         if not bool(velocity_steps) and self.__bool_enable_velocitydependence:
-            raise ValueError('TPA MapInterface: velocity dependence is enabled, but no velocity dependent acc. limits are provided in inputs file!')
+            raise ValueError('TPA MapInterface: velocity dependence is enabled, but no velocity dependent acc. limits '
+                             'are provided in inputs file!')
 
         elif bool(velocity_steps) and not self.__bool_enable_velocitydependence:
-            raise ValueError('TPA MapInterface: velocity dependent acc. limits are provided in file, but velocity dependence is disbaled!')
+            raise ValueError('TPA MapInterface: velocity dependent acc. limits are provided in file, but velocity '
+                             'dependence is disbaled!')
 
         if not bool(velocity_steps):
             self.__count_velocity_steps = 1
@@ -247,10 +249,12 @@ class MapInterface:
 
         # TODO: uncomment when trajectory planner is ready
         # if not self.__bool_enable_velocitydependence and velocity_mps.size != 0:
-        #    raise ValueError('TPA MapInterface: velocity for velocity dependent acc. limits request is provided, but velocity dependence is disbaled!')
+        #    raise ValueError('TPA MapInterface: velocity for velocity dependent acc. limits request is provided, but '
+        #                     'velocity dependence is disbaled!')
 
         if self.__bool_enable_velocitydependence and velocity_mps.size == 0:
-            raise ValueError('TPA MapInterface: velocity dependence is enabled, but no velocity is provided for request!')
+            raise ValueError('TPA MapInterface: velocity dependence is enabled, but no velocity is provided for '
+                             'request!')
 
         # TODO check if velocity array has correct shape and dimension
 
@@ -454,7 +458,8 @@ class MapInterface:
 
         # raise error, if shape of return localgg is not equal to input trajectory; must have same length
         if position_m.shape[0] != localgg.shape[0]:
-            raise ValueError('TPA MapInterface: number of rows of arrays for position request (input) and localgg (output) do not match!')
+            raise ValueError('TPA MapInterface: number of rows of arrays for position request (input) and localgg '
+                             '(output) do not match!')
 
         return localgg
 

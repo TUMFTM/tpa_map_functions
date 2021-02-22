@@ -89,7 +89,7 @@ def save_tpamap(filepath2output_tpamap: str,
         header = header + '\n' + 'track: ' + track_name + '\n' + 'GUI mode: ' + str(header_info['gui_mode'])
     except KeyError:
         pass
-    
+
     if header_info['gui_mode'] == 2:
         header = header + '\n' + 's_m,x_m,y_m,ax_max_mps2,ay_max_mps2'
     else:

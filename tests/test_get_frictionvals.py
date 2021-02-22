@@ -122,7 +122,7 @@ while True:
     t_start = time.perf_counter()
 
     acc_lim = myInterface.get_acclim_tpainterface(position_m=trajectory,
-                                              position_mode='xy-cosy')
+                                                  position_mode='xy-cosy')
 
     myInterface.update()
 
