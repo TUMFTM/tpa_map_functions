@@ -3,13 +3,13 @@ import sys
 import os.path
 import math
 import logging
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d # noqa F401
 import matplotlib.pyplot as plt
 import tkinter as tk
 
 # testing
 from matplotlib.collections import LineCollection
-from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.colors import ListedColormap, BoundaryNorm # noqa F401
 
 path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 sys.path.append(path2module)
@@ -206,7 +206,8 @@ class Manager(tk.Canvas):
         else:
             self.local_scaling_long = np.vstack(self.mean_lsc
                                                 - self.amplitude_lsc
-                                                + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
+                                                + 2 * self.amplitude_lsc
+                                                * np.random.sample(len(self.refline_resampled)))
 
             self.local_scaling_lat = np.vstack(self.mean_lsc
                                                - self.amplitude_lsc

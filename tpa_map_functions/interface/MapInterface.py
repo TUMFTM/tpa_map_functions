@@ -119,7 +119,7 @@ class MapInterface:
             self.__count_velocity_steps = int(len(velocity_steps))
 
         velocity_steps.insert(0, 0.0)
-        self.__velocity_steps = np.asarray(velocity_steps)
+        self.velocity_steps = np.asarray(velocity_steps)
 
         # if true, add all local acc. limits including velocity dependence
         if self.__bool_enable_velocitydependence:
@@ -268,8 +268,8 @@ class MapInterface:
             if self.__bool_enable_velocitydependence:
                 localgg = np.ones((count_rows, 2))
 
-                ax = np.interp(velocity_mps, self.__velocity_steps[1:], self.localgg_mps2[0][0::2])
-                ay = np.interp(velocity_mps, self.__velocity_steps[1:], self.localgg_mps2[0][1::2])
+                ax = np.interp(velocity_mps, self.velocity_steps[1:], self.localgg_mps2[0][0::2])
+                ay = np.interp(velocity_mps, self.velocity_steps[1:], self.localgg_mps2[0][1::2])
 
                 localgg = np.hstack((ax, ay))
 
@@ -448,8 +448,8 @@ class MapInterface:
                 ay = []
 
                 for i, row in enumerate(ax_out):
-                    ax.append(np.interp(velocity_mps[i], self.__velocity_steps[1:], row[0::2]))
-                    ay.append(np.interp(velocity_mps[i], self.__velocity_steps[1:], row[1::2]))
+                    ax.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[0::2]))
+                    ay.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[1::2]))
 
                 localgg = np.hstack((ax, ay))
 

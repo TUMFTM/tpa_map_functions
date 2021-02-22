@@ -20,13 +20,15 @@ Created on: 10.12.2019
 
 # User Input -----------------------------------------------------------------------------------------------------------
 
-trackname = 'IMS_2020_sim'
-localgg_name = "tpamap_IMS_2020_sim_IMS"
+trackname = 'berlin'
+localgg_name = "localgg_varloc_varvel"
 
 updateFrequency = 100
 laps = 1
 s_terminate_m = 3000
 bool_plot = True
+
+velocity_mps = 20
 
 # set indices for looping reference line during tpa map interface request
 
@@ -39,14 +41,13 @@ delta_idx = 80
 # tpa interface settings
 bool_enable_interface2tpa = False
 bool_enable_interpolation = True
-bool_enable_velocitydependence = False
+bool_enable_velocitydependence = True
 
 # tpa zmq settings
 zmq_opts = {"ip": "localhost",  # IP of device running map interface
             "port_data": "47208",  # port number, standard: "21212"
             "topic": "tpa_to_ltpl"  # zmq topic of publisher
             }
-
 
 # Set Up ---------------------------------------------------------------------------------------------------------------
 
@@ -57,14 +58,8 @@ filepath2ltpl_refline = os.path.join(path2module, 'inputs', 'traj_ltpl_cl', 'tra
 dict_refline = tpa_map_functions.helperfuncs.preprocess_ltplrefline.\
     preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline)
 
-refline = dict_refline['refline']
-# s-coordinate of raceline (not used)
-# s_m = dict_refline['raceline_glob'][:, 0]
-
-# calculate s-coordinate of reference line (not raceline!)
-length_s_m = np.hstack((0, np.cumsum(np.sqrt(np.sum(np.square(np.diff(refline, axis=0)), axis=1)))))
-
-coordinates_sxy_m = np.hstack((length_s_m[:, np.newaxis], refline))
+coordinates_sxy_m = dict_refline['refline']
+refline = dict_refline['refline'][:, 1:3]
 
 # create a map interface class
 myInterface = tpa_map_functions.interface.MapInterface.\
@@ -118,11 +113,20 @@ while True:
     idx_start += delta_idx
     idx_stop += delta_idx
 
+    if bool_enable_velocitydependence:
+        arr_velocity_mps = np.full(trajectory.shape, velocity_mps)
+
     # save start time
     t_start = time.perf_counter()
 
-    acc_lim = myInterface.get_acclim_tpainterface(position_m=trajectory,
-                                                  position_mode='xy-cosy')
+    if bool_enable_velocitydependence:
+        acc_lim = myInterface.get_acclim_tpainterface(position_m=trajectory,
+                                                      position_mode='xy-cosy',
+                                                      velocity_mps=arr_velocity_mps)
+
+    else:
+        acc_lim = myInterface.get_acclim_tpainterface(position_m=trajectory,
+                                                      position_mode='xy-cosy')
 
     myInterface.update()
 
@@ -155,10 +159,25 @@ while True:
         break
 
 # plot results
+
+list_linestyle = ['-', '--', '-.', ':']
+
 if bool_plot:
 
     plt.figure()
-    plt.xlim([0, length_s_m[-1]])
+    plt.xlim([0, coordinates_sxy_m[-1, 0]])
+
+    for i_count in range(int(myInterface.localgg_mps2.shape[1] / 2)):
+
+        if int(myInterface.localgg_mps2.shape[1] / 2) > 1:
+            label = 'ground truth of tpamap at ' + str(myInterface.velocity_steps[i_count + 1]) + ' mps'
+        else:
+            label = 'ground truth of tpamap'
+
+        plt.step(myInterface.coordinates_sxy_m[:, 0],
+                 np.vstack((np.asarray(myInterface.localgg_mps2[0, 0 + i_count * 2]),
+                            np.vstack(myInterface.localgg_mps2[:-1, 0 + i_count * 2]))),
+                 'k', linestyle=list_linestyle[i_count], linewidth=2.0, label=label)
 
     for ele in output_data:
         plt.step(ele[:, 0], ele[:, 1])
@@ -166,21 +185,17 @@ if bool_plot:
         plt.draw()
         plt.pause(0.01)
 
-    plt.step(myInterface.coordinates_sxy_m[:, 0],
-             np.vstack((np.asarray(myInterface.localgg_mps2[0, 0]),
-                        np.vstack(myInterface.localgg_mps2[:-1, 0]))),
-             'k', label='ground truth of tpa map')
-
+    plt.grid()
     plt.legend()
     plt.show()
 
-    plt.figure()
+    # plt.figure()
 
-    plt.step(myInterface.coordinates_sxy_m[:, 0],
-             np.vstack((np.asarray(myInterface.localgg_mps2[0, 0]),
-                        np.vstack(myInterface.localgg_mps2[:-1, 0]))),
-             'k', label='ground truth of tpa map')
+    # plt.step(myInterface.coordinates_sxy_m[:, 0],
+    #          np.vstack((np.asarray(myInterface.localgg_mps2[0, 0]),
+    #                     np.vstack(myInterface.localgg_mps2[:-1, 0]))),
+    #          'k', label='ground truth of tpa map')
 
-    plt.step(output_data[0][:, 0], output_data[0][:, 1])
+    # plt.step(output_data[0][:, 0], output_data[0][:, 1])
 
-    plt.show()
+    # plt.show()
