@@ -1,10 +1,19 @@
 import numpy as np
 import os.path
+import sys
 import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
+from matplotlib.widgets import Slider
 
 # import tikzplotlib
+
+# import custom modules
+path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+
+sys.path.append(path2module)
+
+import tpa_map_functions as tmf
 
 """
 Created by: Leonhard Hermansdorfer
@@ -18,7 +27,7 @@ def plot_tpamap_as2dgrid(refline: np.array,
                          normvec_normalized: np.array,
                          filepath2tpamap: str = str(),
                          tpamap: np.array = None,
-                         distance_scoord_labels: float = 200.0):
+                         distance_scoord_labels: float = 400.0):
     """Loads and plots the acceleration limits of the tpa map into a 2d race track map.
 
     Loads tpamap csv-file which contains resampled reference line and corresponding acceleration limits.
@@ -61,8 +70,7 @@ def plot_tpamap_as2dgrid(refline: np.array,
 
     # load tpamap data from file
     if bool(filepath2tpamap):
-        with open(filepath2tpamap, 'r') as fh:
-            tpamap = np.genfromtxt(fh, delimiter=',')
+        tpamap, vel_steps = tmf.interface.import_veh_dyn_info.import_veh_dyn_info(filepath2localgg=filepath2tpamap)
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -86,9 +94,6 @@ def plot_tpamap_as2dgrid(refline: np.array,
     trackboundary_left_m = refline - np.multiply(normvec_normalized, width_left[:, np.newaxis])
     trackboundary_right_m__closed = np.vstack((trackboundary_right_m, trackboundary_right_m[0:3]))
     trackboundary_left_m__closed = np.vstack((trackboundary_left_m, trackboundary_left_m[0:3]))
-
-    # last value equals first entry, therefore discard
-    acomb_mps2 = np.divide(np.sum(tpamap[:-1, -2:], axis=1), 2)
 
     list_points2 = list()
     test_refline = list()
@@ -240,58 +245,87 @@ def plot_tpamap_as2dgrid(refline: np.array,
     if not(len(patches) == len(tpamap) - 1):
         raise ValueError('tpamap visualization - data mismatch')
 
+    # get acceleration limit data
+    # last value equals first entry, therefore discard
+    acomb_mps2 = np.divide(np.sum(tpamap[:-1, 3:5], axis=1), 2)
+
+    y_limits = [np.min(tpamap[:, 3:]) - 2, np.max(tpamap[:, 3:]) + 2]
+
     # plot figure ------------------------------------------------------------------------------------------------------
     bool_add_subplot = True
+    bool_add_slider = True
+
+    def plot_ax1(acomb_mps2: np.array,
+                 bool_is_firstcall: bool = False):
+
+        # plot s-coordinate labels
+        plotting_distance_m = np.arange(0, refline_concat[-1, 0], distance_scoord_labels)
+
+        for int_counter, ele in enumerate(plotting_distance_m):
+            array = np.asarray(refline_concat[:, 0])
+            idx = (np.abs(array - ele)).argmin()
+
+            ax1.plot(refline_concat[idx, 1], refline_concat[idx, 2], 'bo')
+            ax1.annotate('s=' + str(plotting_distance_m.tolist()[int_counter]) + ' m',
+                         (refline_concat[idx, 1], refline_concat[idx, 2]),
+                         xytext=(0, 30), textcoords='offset points', ha='center', va='bottom', color='blue',
+                         bbox=dict(boxstyle='round,pad=0.2', fc='yellow', alpha=0.8),
+                         arrowprops=dict(arrowstyle='->', color='b'))
+
+        # plot areas with colors
+        collection = PatchCollection(patches, cmap=plt.set_cmap('viridis'))
+        collection.set_array(acomb_mps2)
+        ax1.add_collection(collection)
+
+        if not bool_is_firstcall:
+            ax1.collections[-1].colorbar.remove()
+
+        cbar = plt.colorbar(collection, ax=ax1)
+
+        cbar.set_ticks(np.arange(0, y_limits[1] * 1.01, 1.0).round(2).tolist())
+        b_list = []
+
+        for ele in np.arange(0, y_limits[1] * 1.01, 1.0).round(2).tolist():
+            b_list.append(str(ele))
+
+        cbar.set_ticklabels(b_list)
+        cbar.set_label('vehicle acc. limit in m/s^2')
+
+        # plot track boundaries
+        ax1.plot(trackboundary_right_m[:, 0], trackboundary_right_m[:, 1], 'k')
+        ax1.plot(trackboundary_left_m[:, 0], trackboundary_left_m[:, 1], 'k')
+
+        # plot reference line
+        ax1.plot(tpamap[:, 1], tpamap[:, 2], 'k', linestyle='None', marker='x', label='reference line - interp')
+        ax1.plot(refline[:, 0], refline[:, 1], 'r', label='reference line')
+
+        ax1.set_title('tire performance map')
+        ax1.legend()
+
+        ax1.set_xlabel('x in meters')
+        ax1.set_ylabel('y in meters')
+        ax1.axis('equal')
+
+    def plot_ax2(no_vel: list):
+
+        ax2.step(tpamap[:, 0], tpamap[:, 3 + (no_vel - 1) * 2], where='post', label='long. acc.')
+        ax2.step(tpamap[:, 0], tpamap[:, 4 + (no_vel - 1) * 2], where='post', label='lat. acc.')
+
+        ax2.grid()
+        ax2.legend()
+        ax2.set_xlabel('track position in meters')
+        ax2.set_ylabel('long./lat. acc. in m/s^2')
+        ax2.set_xlim((tpamap[0, 0], tpamap[-1, 0]))
+        ax2.set_ylim((y_limits))
+
+    fig = plt.figure()
 
     if bool_add_subplot:
         ax1 = plt.subplot(3, 1, (1, 2))
-
     else:
         ax1 = plt.subplot()
 
-    # plot s-coordinate labels
-    plotting_distance_m = np.arange(0, refline_concat[-1, 0], distance_scoord_labels)
-
-    for int_counter, ele in enumerate(plotting_distance_m):
-        array = np.asarray(refline_concat[:, 0])
-        idx = (np.abs(array - ele)).argmin()
-
-        plt.plot(refline_concat[idx, 1], refline_concat[idx, 2], 'bo')
-        plt.annotate('s=' + str(plotting_distance_m.tolist()[int_counter]) + ' m',
-                     (refline_concat[idx, 1], refline_concat[idx, 2]),
-                     xytext=(0, 30), textcoords='offset points', ha='center', va='bottom', color='blue',
-                     bbox=dict(boxstyle='round,pad=0.2', fc='yellow', alpha=0.8),
-                     arrowprops=dict(arrowstyle='->', color='b'))
-
-    # plot areas with colors
-    collection = PatchCollection(patches, cmap=plt.set_cmap('viridis'))
-    collection.set_array(acomb_mps2)
-    ax1.add_collection(collection)
-
-    cbar = plt.colorbar(collection, ax=ax1)
-    cbar.set_ticks(np.arange(0, np.ceil(np.max(acomb_mps2)) * 1.01, 0.5).round(2).tolist())
-    b_list = []
-
-    for ele in np.arange(0, np.ceil(np.max(acomb_mps2)) * 1.01, 0.5).round(2).tolist():
-        b_list.append(str(ele))
-
-    cbar.set_ticklabels(b_list)
-    cbar.set_label('vehicle acceleration limit in m/s^2')
-
-    # plot track boundaries
-    plt.plot(trackboundary_right_m[:, 0], trackboundary_right_m[:, 1], 'k')
-    plt.plot(trackboundary_left_m[:, 0], trackboundary_left_m[:, 1], 'k')
-
-    # plot reference line
-    plt.plot(tpamap[:, 1], tpamap[:, 2], 'k', linestyle='None', marker='x', label='reference line - interp')
-    plt.plot(refline[:, 0], refline[:, 1], 'r', label='reference line')
-
-    plt.title('tire performance map')
-    plt.legend()
-
-    plt.xlabel('x in meters')
-    plt.ylabel('y in meters')
-    plt.axis('equal')
+    plot_ax1(acomb_mps2=acomb_mps2, bool_is_firstcall=True)
 
     # tikz specific settings
     # plt.draw()
@@ -301,14 +335,29 @@ def plot_tpamap_as2dgrid(refline: np.array,
 
     if bool_add_subplot:
         ax2 = plt.subplot(3, 1, 3)
+        plot_ax2(no_vel=1)
 
-        ax2.step(tpamap[:, 0], tpamap[:, 3], where='post', label='long. acc.')
-        ax2.step(tpamap[:, 0], tpamap[:, 4], where='post', label='lat. acc.')
+        if bool_add_slider:
 
-        plt.grid()
-        plt.legend()
-        plt.xlabel('track position in meters')
-        plt.ylabel('long./lat. acc. in m/s^2')
+            plt.subplots_adjust(bottom=0.2)
+            axcolor = 'lightgoldenrodyellow'
+            axfreq = plt.axes([0.1, 0.05, 0.65, 0.03], facecolor=axcolor)
+            sfreq = Slider(axfreq, 'Freq', valmin=1, valmax=len(vel_steps), valinit=1, valstep=1)
+
+            def update_plot(val):
+                no_vel = sfreq.val
+                print("plot data for " + str(vel_steps[no_vel - 1]) + " mps")
+
+                ax1.clear()
+                acomb_mps2 = np.divide(np.sum(tpamap[:-1, (3 + (no_vel - 1) * 2):(5 + (no_vel - 1) * 2)], axis=1), 2)
+                plot_ax1(acomb_mps2=acomb_mps2)
+
+                ax2.clear()
+                plot_ax2(no_vel=no_vel)
+
+                fig.canvas.draw_idle()
+
+            sfreq.on_changed(update_plot)
 
     plt.show()
 
@@ -328,8 +377,9 @@ if __name__ == '__main__':
 
     # User Input -------------------------------------------------------------------------------------------------------
 
-    track_name = 'berlin'
-    tpamap_name = 'tpamap_berlin___35mps'
+    track_name = 'IMS_2020_sim'
+    tpamap_name = 'localgg_varloc_varvel_IMS'
+    #tpamap_name = 'tpamap_IMS_2020_sim___55mps'
     bool_enable_debug = True
 
     mode_resample_refline = 'var_steps'
