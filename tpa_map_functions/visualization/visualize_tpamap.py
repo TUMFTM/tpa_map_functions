@@ -103,6 +103,7 @@ def plot_tpamap_as2dgrid(refline: np.array,
     bool_isdeleted_lastentry = False
     idx_min = 0
 
+    # match tpamap coordinates onto original reference line for plotting
     for row in tpamap:
 
         idx_min_last = idx_min
@@ -245,18 +246,20 @@ def plot_tpamap_as2dgrid(refline: np.array,
     if not(len(patches) == len(tpamap) - 1):
         raise ValueError('tpamap visualization - data mismatch')
 
-    # get acceleration limit data
-    # last value equals first entry, therefore discard
-    acomb_mps2 = np.divide(np.sum(tpamap[:-1, 3:5], axis=1), 2)
-
-    y_limits = [np.min(tpamap[:, 3:]) - 2, np.max(tpamap[:, 3:]) + 2]
-
-    # plot figure ------------------------------------------------------------------------------------------------------
-    bool_add_subplot = True
-    bool_add_slider = True
+    # define plot functions --------------------------------------------------------------------------------------------
 
     def plot_ax1(acomb_mps2: np.array,
-                 bool_is_firstcall: bool = False):
+                 bool_is_firstcall: bool = False,
+                 xlim: list() = [],
+                 ylim: list() = []):
+
+        # plot track boundaries
+        ax1.plot(trackboundary_right_m[:, 0], trackboundary_right_m[:, 1], 'k')
+        ax1.plot(trackboundary_left_m[:, 0], trackboundary_left_m[:, 1], 'k')
+
+        # plot reference line
+        ax1.plot(tpamap[:, 1], tpamap[:, 2], 'k', linestyle='None', marker='x', label='reference line - interp')
+        ax1.plot(refline[:, 0], refline[:, 1], 'r', label='reference line')
 
         # plot s-coordinate labels
         plotting_distance_m = np.arange(0, refline_concat[-1, 0], distance_scoord_labels)
@@ -276,35 +279,33 @@ def plot_tpamap_as2dgrid(refline: np.array,
         collection = PatchCollection(patches, cmap=plt.set_cmap('viridis'))
         collection.set_array(acomb_mps2)
         ax1.add_collection(collection)
+        collection.set_clim(y_limits)
 
-        if not bool_is_firstcall:
-            ax1.collections[-1].colorbar.remove()
+        list_cblabels = np.arange(0, y_limits[1] * 1.01, 1.0).round(2).tolist()
 
-        cbar = plt.colorbar(collection, ax=ax1)
+        if bool_is_firstcall:
+            cbar = plt.colorbar(collection, ax=ax1)
 
-        cbar.set_ticks(np.arange(0, y_limits[1] * 1.01, 1.0).round(2).tolist())
-        b_list = []
+            cbar.set_ticks(list_cblabels)
+            b_list = []
 
-        for ele in np.arange(0, y_limits[1] * 1.01, 1.0).round(2).tolist():
-            b_list.append(str(ele))
+            for ele in list_cblabels:
+                b_list.append(str(ele))
 
-        cbar.set_ticklabels(b_list)
-        cbar.set_label('vehicle acc. limit in m/s^2')
+            cbar.set_ticklabels(b_list)
+            cbar.set_label('vehicle acc. limit in m/s^2')
 
-        # plot track boundaries
-        ax1.plot(trackboundary_right_m[:, 0], trackboundary_right_m[:, 1], 'k')
-        ax1.plot(trackboundary_left_m[:, 0], trackboundary_left_m[:, 1], 'k')
-
-        # plot reference line
-        ax1.plot(tpamap[:, 1], tpamap[:, 2], 'k', linestyle='None', marker='x', label='reference line - interp')
-        ax1.plot(refline[:, 0], refline[:, 1], 'r', label='reference line')
-
-        ax1.set_title('tire performance map')
         ax1.legend()
-
+        ax1.set_title('tire performance map')
         ax1.set_xlabel('x in meters')
         ax1.set_ylabel('y in meters')
         ax1.axis('equal')
+
+        if xlim and ylim:
+            ax1.set_xlim(xlim)
+            ax1.set_ylim(ylim)
+
+    # -----------------------------------------------------
 
     def plot_ax2(no_vel: list):
 
@@ -318,10 +319,27 @@ def plot_tpamap_as2dgrid(refline: np.array,
         ax2.set_xlim((tpamap[0, 0], tpamap[-1, 0]))
         ax2.set_ylim((y_limits))
 
-    fig = plt.figure()
+    # plot figure ------------------------------------------------------------------------------------------------------
+    bool_add_subplot = True
+    bool_add_slider = True
+
+    if len(vel_steps) == 0:
+        bool_add_slider = False
+
+    # last value equals first entry, therefore discard
+    acomb_mps2 = np.divide(np.sum(tpamap[:-1, 3:5], axis=1), 2)
+
+    # set y limits of colobar denpending on data available
+    if bool_add_subplot and bool_add_slider:
+        y_limits = [np.min(tpamap[:, 3:]) - 2, np.max(tpamap[:, 3:]) + 2]
+    else:
+        y_limits = [np.min(tpamap[:, 3]) - 2, np.max(tpamap[:, 4]) + 2]
+
+    fig = plt.figure(figsize=(14.5, 8))
 
     if bool_add_subplot:
         ax1 = plt.subplot(3, 1, (1, 2))
+        plt.subplots_adjust(left=0.1, bottom=0.1, right=0.90, top=0.9, wspace=None, hspace=0.3)
     else:
         ax1 = plt.subplot()
 
@@ -335,29 +353,33 @@ def plot_tpamap_as2dgrid(refline: np.array,
 
     if bool_add_subplot:
         ax2 = plt.subplot(3, 1, 3)
+
         plot_ax2(no_vel=1)
 
         if bool_add_slider:
 
-            plt.subplots_adjust(bottom=0.2)
+            plt.subplots_adjust(bottom=0.15)
             axcolor = 'lightgoldenrodyellow'
-            axfreq = plt.axes([0.1, 0.05, 0.65, 0.03], facecolor=axcolor)
-            sfreq = Slider(axfreq, 'Freq', valmin=1, valmax=len(vel_steps), valinit=1, valstep=1)
+            axvel = plt.axes([0.1, 0.05, 0.65, 0.03], facecolor=axcolor)
+            svel = Slider(axvel, 'velocity_step', valmin=1, valmax=len(vel_steps), valinit=1, valstep=1)
 
             def update_plot(val):
-                no_vel = sfreq.val
+                no_vel = svel.val
                 print("plot data for " + str(vel_steps[no_vel - 1]) + " mps")
+
+                ax1_xlim = ax1.get_xlim()
+                ax1_ylim = ax1.get_ylim()
 
                 ax1.clear()
                 acomb_mps2 = np.divide(np.sum(tpamap[:-1, (3 + (no_vel - 1) * 2):(5 + (no_vel - 1) * 2)], axis=1), 2)
-                plot_ax1(acomb_mps2=acomb_mps2)
+                plot_ax1(acomb_mps2=acomb_mps2, xlim=list(ax1_xlim), ylim=list(ax1_ylim))
 
                 ax2.clear()
                 plot_ax2(no_vel=no_vel)
 
                 fig.canvas.draw_idle()
 
-            sfreq.on_changed(update_plot)
+            svel.on_changed(update_plot)
 
     plt.show()
 
