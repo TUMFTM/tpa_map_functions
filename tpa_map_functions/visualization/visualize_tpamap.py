@@ -88,7 +88,7 @@ def plot_tpamap_as2dgrid(refline: np.array,
     trackboundary_left_m__closed = np.vstack((trackboundary_left_m, trackboundary_left_m[0:3]))
 
     # last value equals first entry, therefore discard
-    ax_comb_mps2 = tpamap[:-1, -2]
+    acomb_mps2 = np.divide(np.sum(tpamap[:-1, -2:], axis=1), 2)
 
     list_points2 = list()
     test_refline = list()
@@ -178,7 +178,6 @@ def plot_tpamap_as2dgrid(refline: np.array,
                           trackboundary_left_m__closed[idx_min + idx_add_start:idx_min + idx_add_end, 1]))))
 
         else:
-
             test_refline.append(refline[idx_min, :])
             tb_right_interp_m.append(trackboundary_right_m__closed[idx_min, :])
             tb_left_interp_m.append(trackboundary_left_m__closed[idx_min, :])
@@ -242,7 +241,13 @@ def plot_tpamap_as2dgrid(refline: np.array,
         raise ValueError('tpamap visualization - data mismatch')
 
     # plot figure ------------------------------------------------------------------------------------------------------
-    fig_mainplot, ax = plt.subplots()
+    bool_add_subplot = True
+
+    if bool_add_subplot:
+        ax1 = plt.subplot(3, 1, (1, 2))
+
+    else:
+        ax1 = plt.subplot()
 
     # plot s-coordinate labels
     plotting_distance_m = np.arange(0, refline_concat[-1, 0], distance_scoord_labels)
@@ -251,7 +256,7 @@ def plot_tpamap_as2dgrid(refline: np.array,
         array = np.asarray(refline_concat[:, 0])
         idx = (np.abs(array - ele)).argmin()
 
-        plt.plot(refline_concat[idx, 1], refline_concat[idx, 2], 'bx')
+        plt.plot(refline_concat[idx, 1], refline_concat[idx, 2], 'bo')
         plt.annotate('s=' + str(plotting_distance_m.tolist()[int_counter]) + ' m',
                      (refline_concat[idx, 1], refline_concat[idx, 2]),
                      xytext=(0, 30), textcoords='offset points', ha='center', va='bottom', color='blue',
@@ -260,14 +265,14 @@ def plot_tpamap_as2dgrid(refline: np.array,
 
     # plot areas with colors
     collection = PatchCollection(patches, cmap=plt.set_cmap('viridis'))
-    collection.set_array(ax_comb_mps2)
-    ax.add_collection(collection)
+    collection.set_array(acomb_mps2)
+    ax1.add_collection(collection)
 
-    cbar = fig_mainplot.colorbar(collection, ax=ax)
-    cbar.set_ticks(np.arange(0, np.ceil(np.max(ax_comb_mps2)) * 1.01, 0.5).round(2).tolist())
+    cbar = plt.colorbar(collection, ax=ax1)
+    cbar.set_ticks(np.arange(0, np.ceil(np.max(acomb_mps2)) * 1.01, 0.5).round(2).tolist())
     b_list = []
 
-    for ele in np.arange(0, np.ceil(np.max(ax_comb_mps2)) * 1.01, 0.5).round(2).tolist():
+    for ele in np.arange(0, np.ceil(np.max(acomb_mps2)) * 1.01, 0.5).round(2).tolist():
         b_list.append(str(ele))
 
     cbar.set_ticklabels(b_list)
@@ -294,6 +299,17 @@ def plot_tpamap_as2dgrid(refline: np.array,
     # fig_mainplot.canvas.flush_events()
     # tikzplotlib.save('tpa.tex')
 
+    if bool_add_subplot:
+        ax2 = plt.subplot(3, 1, 3)
+
+        ax2.step(tpamap[:, 0], tpamap[:, 3], where='post', label='long. acc.')
+        ax2.step(tpamap[:, 0], tpamap[:, 4], where='post', label='lat. acc.')
+
+        plt.grid()
+        plt.legend()
+        plt.xlabel('track position in meters')
+        plt.ylabel('long./lat. acc. in m/s^2')
+
     plt.show()
 
 
@@ -312,14 +328,14 @@ if __name__ == '__main__':
 
     # User Input -------------------------------------------------------------------------------------------------------
 
-    track_name = 'IMS_2020_sim'
-    tpamap_name = 'tpamap_IMS_2020_sim_27mps'
+    track_name = 'berlin'
+    tpamap_name = 'tpamap_berlin___35mps'
     bool_enable_debug = True
 
     mode_resample_refline = 'var_steps'
     stepsize_resample_m = 11.11
-    section_length_min_m = 15
-    section_length_max_m = 200
+    section_length_min_m = 30
+    section_length_max_m = 400
 
     test_source = 'path'  # or 'path'
 
