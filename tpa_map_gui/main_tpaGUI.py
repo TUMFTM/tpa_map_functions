@@ -13,10 +13,14 @@ import tpa_map_functions as tmf
 # User Input -----------------------------------------------------------------------------------------------------------
 
 # csv_filename - trackname in inputs-folder
-name_refline = "monteblanco"
+name_refline = "berlin"
 
 # stepsize_resample_m - desired stepsize for tpa-map resolution
 stepsize_resample_m = 25
+
+mode_resample_refline = 'var_steps'
+section_length_min_m = 15
+section_length_max_m = 200
 
 # gui_mode = 1: mode to customize local scaling factor for racetrack sections
 # gui_mode = 2: mode to customize ax and ay limits for racetrack sections
@@ -41,8 +45,9 @@ filepath2output_tpamap = os.path.join(path2module, 'outputs', 'tpamap_' + name_r
 
 refline_dict = tmf.helperfuncs.preprocess_ltplrefline.\
     preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
-                           stepsize_resample_m=stepsize_resample_m)
-
+                           mode_resample_refline=mode_resample_refline,
+                           stepsize_resample_m=stepsize_resample_m,
+                           section_length_limits_m=[section_length_min_m, section_length_max_m])
 
 # Set Up GUI -----------------------------------------------------------------------------------------------------------
 

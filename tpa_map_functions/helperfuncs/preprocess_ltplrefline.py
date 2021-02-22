@@ -172,6 +172,9 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
             raceline_glob[-1, 0] = round(raceline_glob[-2, 0] + math.sqrt(np.sum(np.square(diff_raceline_m))), 7)
 
+            width_right = np.hstack([width_right, width_right[-1]])
+            width_left = np.hstack([width_left, width_left[-1]])
+            normvec_normalized = np.vstack([normvec_normalized, normvec_normalized[-1, :]])
             kappa_rl = np.hstack([kappa_rl, kappa_rl[-1]])
             vel_rl = np.hstack([vel_rl, vel_rl[-1]])
             ax_rl = np.hstack([ax_rl, ax_rl[-1]])
@@ -179,9 +182,9 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
     if bool(filepath2ltpl_refline):
         dict_output = {'raceline_glob': raceline_glob,
-                       'width_right': np.hstack([width_right, width_right[-1]]),
-                       'width_left': np.hstack([width_left, width_left[-1]]),
-                       'normvec_normalized': np.vstack([normvec_normalized, normvec_normalized[-1, :]])}
+                       'width_right': width_right,
+                       'width_left': width_left,
+                       'normvec_normalized': normvec_normalized}
 
     # use reference line instead of raceline for further calculation
     s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(refline[:, 0])),
@@ -277,6 +280,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                 s = np.concatenate(([0], np.cumsum(diff_coordinates_m)))
 
                 refline_resampled = np.column_stack((s, interpolated_points))
+
+            dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
 
     # resample reference line with variable step size on basis of raceline ---------------------------------------------
     elif mode_resample_refline == "var_steps":
@@ -472,6 +477,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
         diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1))
 
+        dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
+
         if bool_enable_debug:
             dict_output['refline_resampled'].update({'ax_mps2': ax_rl,
                                                      'ay_mps2': ay_rl,
@@ -496,8 +503,6 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                                                  'max_diff_m': max_diff_m,
                                                  'std_diff_m': std_diff_m})
 
-    dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
-
     return dict_output
 
 
@@ -511,7 +516,7 @@ if __name__ == '__main__':
 
     # User Input -------------------------------------------------------------------------------------------------------
 
-    track_name = 'modena'
+    track_name = 'berlin'
     bool_enable_debug = True
 
     mode_resample_refline = 'var_steps'

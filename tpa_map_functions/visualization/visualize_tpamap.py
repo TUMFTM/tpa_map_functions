@@ -66,12 +66,18 @@ def plot_tpamap_as2dgrid(refline: np.array,
 
     # ------------------------------------------------------------------------------------------------------------------
 
-    # calculate cumulative length of reference line
-    s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(np.vstack((refline, refline[0]))[:, 0])),
-                                            np.square(np.diff(np.vstack((refline, refline[0]))[:, 1]))), axis=0)))
+    if refline.shape[1] != 3:
 
-    refline_concat = np.hstack((np.vstack((np.zeros(1), s_refline_m[:, np.newaxis])),
-                                np.vstack((refline, refline[0]))))
+        # calculate cumulative length of reference line
+        s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(np.vstack((refline, refline[0]))[:, 0])),
+                                                np.square(np.diff(np.vstack((refline, refline[0]))[:, 1]))), axis=0)))
+
+        refline_concat = np.hstack((np.vstack((np.zeros(1), s_refline_m[:, np.newaxis])),
+                                    np.vstack((refline, refline[0]))))
+
+    else:
+        refline_concat = refline.copy()
+        refline = refline[:, 1:3]
 
     refline_closed = np.vstack((refline, refline[0:3, :]))
 
@@ -282,7 +288,6 @@ def plot_tpamap_as2dgrid(refline: np.array,
     plt.ylabel('y in meters')
     plt.axis('equal')
 
-
     # tikz specific settings
     # plt.draw()
     # fig_mainplot.canvas.draw()
@@ -300,18 +305,35 @@ if __name__ == '__main__':
     import sys
 
     # import custom modules
-    path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0],
-                            'tpa_map_functions')
-
+    path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
     sys.path.append(path2tmf)
 
-    import tpa_map_functions
+    import tpa_map_functions as tmf
 
-    filepath2ltpl_refline = os.path.join(path2tmf, 'example_files', 'traj_ltpl_cl', 'traj_ltpl_cl_berlin.csv')
-    filepath2tpamap = os.path.join(path2tmf, 'example_files', 'veh_dyn_info', 'localgg_varloc_constvel.csv')
+    # User Input -------------------------------------------------------------------------------------------------------
 
-    dict_output = tpa_map_functions.helperfuncs.preprocess_ltplrefline.\
-        preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline)
+    track_name = 'IMS_2020_sim'
+    tpamap_name = 'tpamap_IMS_2020_sim_27mps'
+    bool_enable_debug = True
+
+    mode_resample_refline = 'var_steps'
+    stepsize_resample_m = 11.11
+    section_length_min_m = 15
+    section_length_max_m = 200
+
+    test_source = 'path'  # or 'path'
+
+    # Preprocess Reference Line ----------------------------------------------------------------------------------------
+
+    filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_' + track_name + '.csv')
+    filepath2tpamap = os.path.join(path2tmf, 'outputs', tpamap_name + '.csv')
+
+    dict_output = tmf.helperfuncs.preprocess_ltplrefline.\
+        preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
+                               mode_resample_refline=mode_resample_refline,
+                               stepsize_resample_m=stepsize_resample_m,
+                               section_length_limits_m=[section_length_min_m, section_length_max_m],
+                               bool_enable_debug=bool_enable_debug)
 
     plot_tpamap_as2dgrid(filepath2tpamap=filepath2tpamap,
                          refline=dict_output['refline'],

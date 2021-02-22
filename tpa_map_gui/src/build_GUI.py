@@ -71,7 +71,6 @@ class Manager(tk.Canvas):
         self.entries = {}
         self.fig_handle = None
 
-
         # set up main gui ----------------------------------------------------------------------------------------------
 
         self.frame_introtext = tk.Frame(master)
@@ -192,26 +191,41 @@ class Manager(tk.Canvas):
     def randomize(self):
 
         if self.gui_mode == 2:
-            self.ax = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
-            self.ay = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
-            self.local_scaling = np.vstack(
-                self.mean_acc - self.amplitude_acc + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
+            self.ax = np.vstack(self.mean_acc
+                                - self.amplitude_acc
+                                + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
+
+            self.ay = np.vstack(self.mean_acc
+                                - self.amplitude_acc
+                                + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
+
+            self.local_scaling = np.vstack(self.mean_acc
+                                           - self.amplitude_acc
+                                           + 2 * self.amplitude_acc * np.random.sample(len(self.refline_resampled)))
 
         else:
-            self.local_scaling_long = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
-            self.local_scaling_lat = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
-            self.local_scaling = np.vstack(
-                self.mean_lsc - self.amplitude_lsc + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
+            self.local_scaling_long = np.vstack(self.mean_lsc
+                                                - self.amplitude_lsc
+                                                + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
+
+            self.local_scaling_lat = np.vstack(self.mean_lsc
+                                               - self.amplitude_lsc
+                                               + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
+
+            self.local_scaling = np.vstack(self.mean_lsc
+                                           - self.amplitude_lsc
+                                           + 2 * self.amplitude_lsc * np.random.sample(len(self.refline_resampled)))
 
         if self.gui_mode == 1:
-            self.refline_initial = np.hstack(
-                [self.refline_resampled, self.local_scaling, self.local_scaling_long, self.local_scaling_lat])
+            self.refline_initial = np.hstack([self.refline_resampled,
+                                              self.local_scaling,
+                                              self.local_scaling_long,
+                                              self.local_scaling_lat])
         elif self.gui_mode == 2:
-            self.refline_initial = np.hstack([self.refline_resampled, self.local_scaling, self.ax, self.ay])
+            self.refline_initial = np.hstack([self.refline_resampled,
+                                              self.local_scaling,
+                                              self.ax,
+                                              self.ay])
 
         self.update_figure()
 
@@ -337,9 +351,9 @@ class Manager(tk.Canvas):
             if int_columns == 3 and self.gui_mode == 1:
 
                 if 0 < np.isnan(self.array_guidata[int_rows, :]).sum() < self.int_number_columns:
-                    tk.Label(self.frame_usermessage, text='make sure row ' + str(int_rows) +
-                                                          ' is either completely filled or empty! '
-                                                          'Please double-check').grid(row=0, column=1, sticky=tk.W)
+                    tk.Label(self.frame_usermessage,
+                             text='make sure row ' + str(int_rows) + ' is either completely filled or empty! '
+                             'Please double-check').grid(row=0, column=1, sticky=tk.W)
 
                     break
 

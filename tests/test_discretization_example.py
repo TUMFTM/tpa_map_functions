@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-#import tikzplotlib
+# import tikzplotlib
 
 s_map_m = np.arange(0, 80, 10)
 acc_mps2 = np.asarray([11.0, 12.0, 12.5, 13.0, 12.0, 11.0, 10.0, 12.0])
@@ -171,6 +171,6 @@ ax1.legend()
 
 # export to tikz
 plt.draw()
-#tikzplotlib.save('discretization_frictionmap.tex')
+# tikzplotlib.save('discretization_frictionmap.tex')
 
 plt.show()

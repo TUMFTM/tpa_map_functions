@@ -77,7 +77,8 @@ def import_veh_dyn_info(filepath2localgg: str = "") -> np.ndarray:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least five columns required!')
 
         if data_localggfile.size != 3 + count_veldep_columns:
-            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header entries does not match!')
+            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header '
+                             'entries does not match!')
 
 #        if data_localggfile.size > 5:
 #            print('WARNING: TPA MapInterface: shape of localgg file data -> more than five columns provided!')
@@ -90,7 +91,8 @@ def import_veh_dyn_info(filepath2localgg: str = "") -> np.ndarray:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least five columns required!')
 
         if data_localggfile.shape[1] != 3 + count_veldep_columns:
-            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header entries does not match!')
+            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header '
+                             'entries does not match!')
 
 #        if data_localggfile.shape[1] > 5:
 #            print('WARNING: TPA MapInterface: shape of localgg file data -> more than five columns provided!')
@@ -116,7 +118,8 @@ def import_veh_dyn_info(filepath2localgg: str = "") -> np.ndarray:
     if count_veldep_columns != 0:
 
         if velocity_steps[0::2] != velocity_steps[1::2]:
-            raise ValueError('TPA MapInterface: data import: acceleration limits are not pairwise equal for same velocity!')
+            raise ValueError('TPA MapInterface: data import: acceleration limits are not pairwise equal for same '
+                             'velocity!')
 
         if not np.all(np.diff(np.asarray(velocity_steps[0::2])) > 0):
             raise ValueError('TPA MapInterface: data import: velocity steps are not increasing monotonously!')
