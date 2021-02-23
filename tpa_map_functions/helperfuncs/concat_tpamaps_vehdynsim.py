@@ -106,14 +106,22 @@ def concat_tpamaps_vehdynsim(path2tpamaps: str(),
     print('tpa map functions: tpamap_tum_mcs.csv saved successfully')
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+# testing --------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
+    # list names of local tire model scaling maps which should be concatenated
     list_tpamaps = ["tpamap_berlin_1.csv",
                     "tpamap_berlin_2.csv",
                     "tpamap_berlin_3.csv"]
 
+    # list the specific timesteps where each map should be used raw (100%);
+    # the maps are interpolated between those timesteps
     time_interpsteps = [0.0, 20.0, 35.0]
 
+    # set to True if map should be used within vehicle dynamics simulation;
+    # the file is always necessary, therefore, set to False if no varying friction influence is needed 
     bool_enable_tpamaps = True
 
     path2tpamaps = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions', 'outputs')

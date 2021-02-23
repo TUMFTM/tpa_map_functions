@@ -11,10 +11,10 @@ import tkinter as tk
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, BoundaryNorm # noqa F401
 
-path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
-sys.path.append(path2module)
+# import custom modules
+path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+sys.path.append(path2tmf)
 
-# custom functions
 import tpa_map_functions as tmf
 
 """
@@ -22,13 +22,13 @@ Created by: Dominik Staerk
 Created on: 04.11.2020
 """
 
-
 logging.basicConfig(format='%(levelname)s:IN--%(funcName)s--: %(message)s', level=logging.WARNING)
 
 
 class Manager(tk.Canvas):
     def __init__(self,
-                 refline: np.array,
+                 refline_dict: dict(),
+                 refline_resampled: np.array,
                  bool_closedtrack: bool,
                  filepath2output_tpamap: str,
                  gui_mode: int,
@@ -43,7 +43,9 @@ class Manager(tk.Canvas):
         :param master:
         :param kwargs:
         """
-        self.refline_resampled = refline
+        self.refline_resampled = refline_resampled
+        self.refline_dict = refline_dict
+        self.refline_original = refline_dict['refline']
         self.bool_closedtrack = bool_closedtrack
 
         self.filepath2output_tpamap = filepath2output_tpamap
@@ -169,7 +171,8 @@ class Manager(tk.Canvas):
     # Class functions --------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
     def gui_mode_select_1(self):
-        self.__init__(refline=self.refline_resampled,
+        self.__init__(refline_dict=self.refline_dict,
+                      refline_resampled=self.refline_resampled,
                       bool_closedtrack=self.bool_closedtrack,
                       filepath2output_tpamap=self.filepath2output_tpamap,
                       gui_mode=1,
@@ -179,7 +182,8 @@ class Manager(tk.Canvas):
     # ------------------------------------------------------------------------------------------------------------------
 
     def gui_mode_select_2(self):
-        self.__init__(refline=self.refline_resampled,
+        self.__init__(refline_dict=self.refline_dict,
+                      refline_resampled=self.refline_resampled,
                       bool_closedtrack=self.bool_closedtrack,
                       filepath2output_tpamap=self.filepath2output_tpamap,
                       gui_mode=2,
@@ -412,7 +416,6 @@ class Manager(tk.Canvas):
             if int_columns == self.int_number_columns:
                 int_rows += 1
                 int_columns = 0
-        print('get_data done')
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -537,8 +540,15 @@ class Manager(tk.Canvas):
 
     def plot_tpamap(self, refline_plot: np.array):
 
-        local_scaling = refline_plot[:, 3]
-        refline_plot = refline_plot[:, :6]
+        tpamap = np.hstack((refline_plot[:, :3], refline_plot[:, 4:]))
+
+        if self.gui_mode == 2:
+            ylabel = 'local acc. limit in m/s^2'
+        else:
+            ylabel = 'local scaling factor'
+
+        dict_plotinfo = {'bool_set_blocking': False,
+                         'ylabel': ylabel}
 
         # generate main plot -------------------------------------------------------------------------------------------
 
@@ -549,65 +559,12 @@ class Manager(tk.Canvas):
 
         self.fig_handle.canvas.manager.window.wm_geometry("+%d+%d" % (600, 10))
 
-        plt.subplot(3, 1, (1, 2))
-
-        plt.plot(refline_plot[:, 1], refline_plot[:, 2], 'k', label='resampled reference line')
-
-        plotting_distance_m = np.arange(0, refline_plot[-1, 0], 100)
-
-        for int_counter, ele in enumerate(plotting_distance_m):
-            array = np.asarray(refline_plot[:, 0])
-            idx = (np.abs(array - ele)).argmin()
-
-            plt.plot(refline_plot[idx, 1], refline_plot[idx, 2], 'bx')
-            plt.annotate('s=' + str(plotting_distance_m.tolist()[int_counter]) + ' m',
-                         (refline_plot[idx, 1], refline_plot[idx, 2]),
-                         xytext=(0, 30), textcoords='offset points', ha='center', va='bottom', color='blue',
-                         bbox=dict(boxstyle='round,pad=0.2', fc='yellow', alpha=0.8),
-                         arrowprops=dict(arrowstyle='->', color='b'))
-
-        # Create a set of line segments so that we can color them individually
-        # This creates the points as a N x 1 x 2 array so that we can stack points
-        # together easily to get the segments. The segments array for line collection
-        # needs to be numlines x points per line x 2 (x and y)
-        points = refline_plot[:, 1:3].reshape(-1, 1, 2)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-
-        # Create the line collection object, setting the colormapping parameters.
-        # Have to set the actual values used for colormapping separately.
-        lc = LineCollection(segments)
-        lc.set_array(local_scaling)
-        lc.set_linewidth(7)
-
-        plt.gca().add_collection(lc)
-
-        cbar = self.fig_handle.colorbar(lc)  # (lc, cmap='viridis')
-        if self.gui_mode == 2:
-            cbar.set_label('local combined acceleration limit mps2', rotation=270)
-        else:
-            cbar.set_label('local mue scaling factor', rotation=270)
-
-        plt.axis('equal')
-
-        plt.grid()
-        plt.legend(loc='best')
-        plt.xlabel('x in meters')
-        plt.ylabel('y in meters')
-        plt.show(block=False)
-
-        plt.subplot(3, 1, 3)
-
-        plt.step(refline_plot[:-1, 0], refline_plot[:-1, 4], 'r', where='post', label='longitudinal')
-        plt.step(refline_plot[:-1, 0], refline_plot[:-1, 5], 'b', where='post', label='lateral')
-
-        plt.grid()
-        plt.legend(loc='best')
-        plt.xlabel('s in meters')
-        if self.gui_mode == 2:
-            plt.ylabel('local acc limit in mps2')
-        else:
-            plt.ylabel('local scaling factor')
-        plt.show(block=False)
+        tmf.visualization.visualize_tpamap.visualize_tpamap(tpamap=tpamap,
+                                                            refline=self.refline_dict['refline'],
+                                                            width_right=self.refline_dict['width_right'],
+                                                            width_left=self.refline_dict['width_left'],
+                                                            normvec_normalized=self.refline_dict['normvec_normalized'],
+                                                            fig_handle=self.fig_handle)
 
         print('plot_tpamap done')
 
