@@ -11,17 +11,16 @@ import tkinter as tk
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, BoundaryNorm # noqa F401
 
-path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
-sys.path.append(path2module)
+# import custom modules
+path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+sys.path.append(path2tmf)
 
-# custom functions
 import tpa_map_functions as tmf
 
 """
 Created by: Dominik Staerk
 Created on: 04.11.2020
 """
-
 
 logging.basicConfig(format='%(levelname)s:IN--%(funcName)s--: %(message)s', level=logging.WARNING)
 

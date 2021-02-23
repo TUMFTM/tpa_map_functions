@@ -3,10 +3,10 @@ import src
 import sys
 import tkinter as tk
 
-path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
-sys.path.append(path2module)
+# import custom modules
+path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+sys.path.append(path2tmf)
 
-# custom functions
 import tpa_map_functions as tmf
 
 
@@ -34,11 +34,9 @@ dict_settings = {"mean_lsc": 1.0,       # mean of the random created local scali
 
 # Path Management ------------------------------------------------------------------------------------------------------
 
-path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_' + name_refline + '.csv')
 
-filepath2ltpl_refline = os.path.join(path2module, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_' + name_refline + '.csv')
-
-filepath2output_tpamap = os.path.join(path2module, 'outputs', 'tpamap_' + name_refline)
+filepath2output_tpamap = os.path.join(path2tmf, 'outputs', 'tpamap_' + name_refline)
 
 
 # Load reference line --------------------------------------------------------------------------------------------------

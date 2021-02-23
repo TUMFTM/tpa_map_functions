@@ -9,11 +9,10 @@ from matplotlib.widgets import Slider
 # import tikzplotlib
 
 # import custom modules
-path2module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+sys.path.append(path2tmf)
 
-sys.path.append(path2module)
-
-import tpa_map_functions as tmf
+import tpa_map_functions.interface.import_vehdyninfo
 
 """
 Created by: Leonhard Hermansdorfer
@@ -21,13 +20,13 @@ Created on: 15.11.2019
 """
 
 
-def plot_tpamap_as2dgrid(refline: np.array,
-                         width_right: np.array,
-                         width_left: np.array,
-                         normvec_normalized: np.array,
-                         filepath2tpamap: str = str(),
-                         tpamap: np.array = None,
-                         distance_scoord_labels: float = 400.0):
+def visualize_tpamap(refline: np.array,
+                     width_right: np.array,
+                     width_left: np.array,
+                     normvec_normalized: np.array,
+                     filepath2tpamap: str = str(),
+                     tpamap: np.array = None,
+                     distance_scoord_labels: float = 400.0):
     """Loads and plots the acceleration limits of the tpa map into a 2d race track map.
 
     Loads tpamap csv-file which contains resampled reference line and corresponding acceleration limits.
@@ -70,7 +69,8 @@ def plot_tpamap_as2dgrid(refline: np.array,
 
     # load tpamap data from file
     if bool(filepath2tpamap):
-        tpamap, vel_steps = tmf.interface.import_veh_dyn_info.import_veh_dyn_info(filepath2localgg=filepath2tpamap)
+        tpamap, vel_steps = tpa_map_functions.interface.import_vehdyninfo.\
+            import_vehdyninfo(filepath2localgg=filepath2tpamap)
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -388,43 +388,4 @@ def plot_tpamap_as2dgrid(refline: np.array,
 # testing --------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-
-    import sys
-
-    # import custom modules
-    path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
-    sys.path.append(path2tmf)
-
-    import tpa_map_functions as tmf
-
-    # User Input -------------------------------------------------------------------------------------------------------
-
-    track_name = 'IMS_2020_sim'
-    tpamap_name = 'localgg_varloc_varvel_IMS'
-    #tpamap_name = 'tpamap_IMS_2020_sim___55mps'
-    bool_enable_debug = True
-
-    mode_resample_refline = 'var_steps'
-    stepsize_resample_m = 11.11
-    section_length_min_m = 30
-    section_length_max_m = 400
-
-    test_source = 'path'  # or 'path'
-
-    # Preprocess Reference Line ----------------------------------------------------------------------------------------
-
-    filepath2ltpl_refline = os.path.join(path2tmf, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_' + track_name + '.csv')
-    filepath2tpamap = os.path.join(path2tmf, 'outputs', tpamap_name + '.csv')
-
-    dict_output = tmf.helperfuncs.preprocess_ltplrefline.\
-        preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
-                               mode_resample_refline=mode_resample_refline,
-                               stepsize_resample_m=stepsize_resample_m,
-                               section_length_limits_m=[section_length_min_m, section_length_max_m],
-                               bool_enable_debug=bool_enable_debug)
-
-    plot_tpamap_as2dgrid(filepath2tpamap=filepath2tpamap,
-                         refline=dict_output['refline'],
-                         width_right=dict_output['width_right'],
-                         width_left=dict_output['width_left'],
-                         normvec_normalized=dict_output['normvec_normalized'])
+    pass
