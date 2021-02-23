@@ -64,7 +64,7 @@ if bool_enable_debug:
     plt.xlabel('x in meters')
     plt.ylabel('y in meters')
 
-    plt.show()
+    plt.show(block=False)
 
     if mode_resample_refline == "const_steps":
 

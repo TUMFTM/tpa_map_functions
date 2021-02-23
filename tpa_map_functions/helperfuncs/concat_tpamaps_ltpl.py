@@ -95,7 +95,7 @@ def concat_tpamaps_ltpl(path2tpamaps: str(),
     header = 'created on: ' + datetime.datetime.now().strftime("%Y-%m-%d") + ', '\
              + datetime.datetime.now().strftime("%H:%M:%S")
 
-    header = header + '\n' + 'tpamap: ' + tpamap_identifier
+    header = header + '\n' + 'track: ' + tpamap_identifier
     header = header + '\n' + 's_m,x_m,y_m'
 
     if len(list_velsteps) <= 1:
@@ -116,15 +116,4 @@ def concat_tpamaps_ltpl(path2tpamaps: str(),
 # testing --------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-
-    # part of naming which is identical for all tpa-maps which should be concatenated; only difference is "_XXmps"
-    tpamap_identifier = "tpamap_berlin"
-
-    path2tpamaps = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions', 'outputs')
-
-    filepath2output = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0],
-                                   'tpa_map_functions', 'outputs', 'tpamap_varvel.csv')
-
-    concat_tpamaps_ltpl(path2tpamaps=path2tpamaps,
-                        filepath2output=filepath2output,
-                        tpamap_identifier=tpamap_identifier)
+    pass

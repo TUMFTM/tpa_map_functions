@@ -9,9 +9,8 @@ import tpa_map_functions as tmf
 
 # User Input -------------------------------------------------------------------------------------------------------
 
-track_name = 'IMS_2020_sim'
-tpamap_name = 'localgg_varloc_varvel_IMS'
-# tpamap_name = 'tpamap_IMS_2020_sim___55mps'
+track_name = 'berlin'
+tpamap_name = 'tpamap_varloc_varvel_berlin'
 bool_enable_debug = True
 
 # Preprocess Reference Line ----------------------------------------------------------------------------------------

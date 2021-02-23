@@ -21,7 +21,7 @@ Created on: 10.12.2019
 # User Input -----------------------------------------------------------------------------------------------------------
 
 trackname = 'berlin'
-localgg_name = "localgg_varloc_varvel"
+tpamap_name = "tpamap_varloc_varvel_berlin"
 
 updateFrequency = 100
 laps = 1
@@ -51,7 +51,7 @@ zmq_opts = {"ip": "localhost",  # IP of device running map interface
 
 # Set Up ---------------------------------------------------------------------------------------------------------------
 
-filepath2localgg = os.path.join(path2module, "inputs", "veh_dyn_info", localgg_name + ".csv")
+filepath2tpamap = os.path.join(path2module, "inputs", "veh_dyn_info", tpamap_name + ".csv")
 filepath2ltpl_refline = os.path.join(path2module, 'inputs', 'traj_ltpl_cl', 'traj_ltpl_cl_' + trackname + '.csv')
 
 # load reference line from file
@@ -63,7 +63,7 @@ refline = dict_refline['refline'][:, 1:3]
 
 # create a map interface class
 myInterface = tpa_map_functions.interface.MapInterface.\
-    MapInterface(filepath2localgg=filepath2localgg,
+    MapInterface(filepath2localgg=filepath2tpamap,
                  zmq_opts_sub_tpa=zmq_opts,
                  bool_enable_interface2tpa=bool_enable_interface2tpa,
                  bool_enable_interpolation=bool_enable_interpolation,
@@ -160,7 +160,9 @@ while True:
 
 # plot results
 
-list_linestyle = ['-', '--', '-.', ':']
+list_linestyle = ['-', '--', '-.', ':'] * 2
+list_linestyle.sort()
+list_linecolor = ['black', 'blue']
 
 if bool_plot:
 
@@ -177,7 +179,7 @@ if bool_plot:
         plt.step(myInterface.coordinates_sxy_m[:, 0],
                  np.vstack((np.asarray(myInterface.localgg_mps2[0, 0 + i_count * 2]),
                             np.vstack(myInterface.localgg_mps2[:-1, 0 + i_count * 2]))),
-                 'k', linestyle=list_linestyle[i_count], linewidth=2.0, label=label)
+                 color=list_linecolor[i_count % 2], linestyle=list_linestyle[i_count], linewidth=2.0, label=label)
 
     for ele in output_data:
         plt.step(ele[:, 0], ele[:, 1])

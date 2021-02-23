@@ -25,10 +25,10 @@ zmq_opts = {"ip": "localhost",          # IP of device running map interface
 # test 3 - constant local acceleration limits, variable velocity
 # test 4 - variable local acceleration limits, variable velocity
 
-filename_localgg = ['localgg_constloc_constvel.csv',
-                    'localgg_constloc_varvel.csv',
-                    'localgg_varloc_constvel.csv',
-                    'localgg_varloc_varvel.csv']
+filename_tpamap = ['tpamap_constloc_constvel.csv',
+                   'tpamap_constloc_varvel.csv',
+                   'tpamap_varloc_constvel_berlin.csv',
+                   'tpamap_varloc_varvel_berlin.csv']
 
 bool_enable_velocitydependence = [False,
                                   True,
@@ -39,13 +39,13 @@ bool_enable_velocitydependence = [False,
 for ele in [False, True]:
     counter = 0
 
-    while counter <= len(filename_localgg) - 1:
+    while counter <= len(filename_tpamap) - 1:
 
         print('----------------------------------------------------------')
-        print('run test {} with file: {}\nInterpolation: {}'.format(counter + 1, filename_localgg[counter], ele))
+        print('run test {} with file: {}\nInterpolation: {}'.format(counter + 1, filename_tpamap[counter], ele))
 
         MapInt = MapInterface.MapInterface(filepath2localgg=os.path.join(path2module, 'inputs', 'veh_dyn_info',
-                                                                         filename_localgg[counter]),
+                                                                         filename_tpamap[counter]),
                                            bool_enable_interpolation=ele,
                                            bool_enable_velocitydependence=bool_enable_velocitydependence[counter])
 

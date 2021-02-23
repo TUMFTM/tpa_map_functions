@@ -15,7 +15,7 @@ Created by: Leonhard Hermansdorfer
 Created on: 10.12.2019
 """
 
-filepath2localgg = os.path.join(path_root2Module, 'inputs', 'veh_dyn_info', 'localgg_constloc_constvel.csv')
+filepath2tpamap = os.path.join(path_root2Module, 'inputs', 'veh_dyn_info', 'tpamap_constloc_constvel.csv')
 
 # Get data from TPA
 zmq_opts = {"ip": "localhost",          # IP of device running map interface
@@ -24,7 +24,7 @@ zmq_opts = {"ip": "localhost",          # IP of device running map interface
             }
 
 # create a map interface class and kick it every 100ms
-MapInt = MapInterface.MapInterface(filepath2localgg=filepath2localgg,
+MapInt = MapInterface.MapInterface(filepath2localgg=filepath2tpamap,
                                    zmq_opts_sub_tpa=zmq_opts,
                                    bool_enable_interface2tpa=True)
 
