@@ -26,7 +26,8 @@ def visualize_tpamap(refline: np.array,
                      normvec_normalized: np.array,
                      filepath2tpamap: str = str(),
                      tpamap: np.array = None,
-                     distance_scoord_labels: float = 400.0):
+                     distance_scoord_labels: float = 400.0,
+                     fig_handle=None):
     """Loads and plots the acceleration limits of the tpa map into a 2d race track map.
 
     Loads tpamap csv-file which contains resampled reference line and corresponding acceleration limits.
@@ -71,6 +72,9 @@ def visualize_tpamap(refline: np.array,
     if bool(filepath2tpamap):
         tpamap, vel_steps = tpa_map_functions.interface.import_vehdyninfo.\
             import_vehdyninfo(filepath2localgg=filepath2tpamap)
+
+    else:
+        vel_steps = []
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -331,12 +335,17 @@ def visualize_tpamap(refline: np.array,
 
     # set y limits of colobar denpending on data available
     if bool_add_subplot and bool_add_slider:
-        y_limits = [np.min(tpamap[:, 3:]) - 2, np.max(tpamap[:, 3:]) + 2]
+        y_limits = [max(np.min(tpamap[:, 3:]) - 2, 0), np.max(tpamap[:, 3:]) + 2]
     else:
-        y_limits = [np.min(tpamap[:, 3]) - 2, np.max(tpamap[:, 4]) + 2]
+        y_limits = [max(np.min(tpamap[:, 3:5]) - 2, 0), np.max(tpamap[:, 3:5]) + 2]
 
-    fig = plt.figure(figsize=(14.5, 8))
+    # use existing figure when provided (e.g. when GUI is running)
+    if fig_handle is None:
+        fig = plt.figure(figsize=(14.5, 8))
+    else:
+        fig = fig_handle
 
+    # create subplots if activated
     if bool_add_subplot:
         ax1 = plt.subplot(3, 1, (1, 2))
         plt.subplots_adjust(left=0.1, bottom=0.1, right=0.90, top=0.9, wspace=None, hspace=0.3)
