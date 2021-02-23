@@ -6,7 +6,7 @@ Created on: 05.09.2020
 """
 
 
-def import_veh_dyn_info(filepath2localgg: str = "") -> np.ndarray:
+def import_vehdyninfo(filepath2localgg: str = "") -> np.ndarray:
     """
     .. description::
     This function imports the local acceleration limits specified by a 'localgg' file and checks validity of the

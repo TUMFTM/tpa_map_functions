@@ -3,8 +3,7 @@ import os
 import numpy as np
 
 # custom modules
-path2module = os.path.join(os.path.abspath(__file__).split("tpa_map_functions")[0],
-                           "tpa_map_functions")
+path2module = os.path.join(os.path.abspath(__file__).split("tpa_map_functions")[0], "tpa_map_functions")
 
 sys.path.append(path2module)
 

@@ -6,10 +6,10 @@ import sys
 import ad_interface_functions
 import trajectory_planning_helpers as tph
 
-path_root2Module = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
-sys.path.append(path_root2Module)
+path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
+sys.path.append(path2tmf)
 
-import tpa_map_functions.interface.import_veh_dyn_info
+import tpa_map_functions.interface.import_vehdyninfo
 
 """
 Created by: Leonhard Hermansdorfer
@@ -91,7 +91,7 @@ class MapInterface:
         # Read Data File Containing Tire Performance Assessment Map ----------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        tpamap, velocity_steps = tpa_map_functions.interface.import_veh_dyn_info.import_veh_dyn_info(
+        tpamap, velocity_steps = tpa_map_functions.interface.import_vehdyninfo.import_vehdyninfo(
             filepath2localgg=filepath2localgg)
 
         self.coordinates_sxy_m = tpamap[:, 0:3]
@@ -119,7 +119,7 @@ class MapInterface:
             self.__count_velocity_steps = int(len(velocity_steps))
 
         velocity_steps.insert(0, 0.0)
-        self.__velocity_steps = np.asarray(velocity_steps)
+        self.velocity_steps = np.asarray(velocity_steps)
 
         # if true, add all local acc. limits including velocity dependence
         if self.__bool_enable_velocitydependence:
@@ -268,8 +268,8 @@ class MapInterface:
             if self.__bool_enable_velocitydependence:
                 localgg = np.ones((count_rows, 2))
 
-                ax = np.interp(velocity_mps, self.__velocity_steps[1:], self.localgg_mps2[0][0::2])
-                ay = np.interp(velocity_mps, self.__velocity_steps[1:], self.localgg_mps2[0][1::2])
+                ax = np.interp(velocity_mps, self.velocity_steps[1:], self.localgg_mps2[0][0::2])
+                ay = np.interp(velocity_mps, self.velocity_steps[1:], self.localgg_mps2[0][1::2])
 
                 localgg = np.hstack((ax, ay))
 
@@ -448,8 +448,8 @@ class MapInterface:
                 ay = []
 
                 for i, row in enumerate(ax_out):
-                    ax.append(np.interp(velocity_mps[i], self.__velocity_steps[1:], row[0::2]))
-                    ay.append(np.interp(velocity_mps[i], self.__velocity_steps[1:], row[1::2]))
+                    ax.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[0::2]))
+                    ay.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[1::2]))
 
                 localgg = np.hstack((ax, ay))
 
