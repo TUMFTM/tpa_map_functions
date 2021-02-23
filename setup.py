@@ -15,7 +15,7 @@ setuptools.setup(
     url='https://github.com/TUMFTM',
     author="Leonhard Hermansdorfer",
     author_email="leo.hermansdorfer@tum.de",
-    description="Functions to process local acceleration limitations for trajectory planning at TUM/FTM",
+    description="Functions to process local acceleration limits for trajectory planning within the TUM Autonomous Motorsports project",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(exclude=["*inputs*", "*outputs*", "*tests*", "*resources*", "*venv*", "*tpa_map_gui*"]),

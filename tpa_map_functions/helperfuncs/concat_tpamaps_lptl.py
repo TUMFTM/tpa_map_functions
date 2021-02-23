@@ -117,6 +117,7 @@ def concat_tpamaps_ltpl(path2tpamaps: str(),
 # ----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
+    # part of naming which is identical for all tpa-maps which should be concatenated; only difference is "_XXmps"
     tpamap_identifier = "tpamap_berlin"
 
     path2tpamaps = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions', 'outputs')
