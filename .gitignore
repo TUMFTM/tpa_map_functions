@@ -6,5 +6,5 @@ venv/
 .vscode/
 
 # git ignore files
-# outputs/*.csv
+outputs/*.csv
 *.pyc
