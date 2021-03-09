@@ -87,6 +87,10 @@ class MapInterface:
         # subtract from current vehicle position
         self.__s_lookback_safety_m = 50.0
 
+        # variables for strategy module
+        self.bool_isactivate_strategy = False
+        self.bool_switchedoff_strat = False
+
         # --------------------------------------------------------------------------------------------------------------
         # Read Data File Containing Tire Performance Assessment Map ----------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
@@ -128,6 +132,18 @@ class MapInterface:
         else:
             self.localgg_mps2 = tpamap[:, 3:5]
 
+        self.localgg_backup_mps2 = self.localgg_mps2.copy()
+        self.localgg_strat_mps2 = self.localgg_mps2.copy()
+
+        # skip when global constant values are used
+        if self.data_mode == 'global_variable' and not self.__bool_enable_interface2tpa:
+            self.format_rawtpamap()
+
+        elif self.data_mode == 'global_variable' and self.__bool_enable_interface2tpa:
+            raise FileExistsError('localgg file in inputs/veh_dyn_info does contain multiple entries. ',
+                                  'This is not allowed when interface to tpa module is enabled. ',
+                                  'Only put one row with initial values in file.')
+
         # --------------------------------------------------------------------------------------------------------------
         # Initialize Communication: ZMQ --------------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
@@ -145,17 +161,6 @@ class MapInterface:
 
             # wait a short time until all sockets are really bound (ZMQ specific problem)
             time.sleep(0.5)
-
-        # skip when global constant values are used
-        if self.data_mode == 'global_variable' and not self.__bool_enable_interface2tpa:
-            self.format_rawtpamap()
-
-            self.localgg_extended = np.vstack((self.localgg_mps2[-2, :], self.localgg_mps2))
-
-        elif self.data_mode == 'global_variable' and self.__bool_enable_interface2tpa:
-            raise FileExistsError('localgg file in inputs/veh_dyn_info does contain multiple entries. ',
-                                  'This is not allowed when interface to tpa module is enabled. ',
-                                  'Only put one row with initial values in file.')
 
     # ------------------------------------------------------------------------------------------------------------------
     # Destructor -------------------------------------------------------------------------------------------------------
@@ -279,6 +284,9 @@ class MapInterface:
         # calculate location-dependent acceleration limits ('global variable') -----------------------------------------
         elif self.data_mode == 'global_variable':
 
+            # extend localgg array for interpolation
+            localgg_extended = np.vstack((self.localgg_mps2[-2, :], self.localgg_mps2))
+
             # calculate s-coordinate when xy-coordinates are provided
             if position_mode == 'xy-cosy':
 
@@ -342,12 +350,12 @@ class MapInterface:
                     # check neighbouring cell values to always guarantee a conservative acceleration limit
 
                     # get information of neighbouring data separately for ax and ay
-                    bool_idx_isequal_idxplus = self.localgg_extended[idx] == self.localgg_extended[idx + 1]
-                    bool_idx_greater_idxplus = self.localgg_extended[idx] > self.localgg_extended[idx + 1]
-                    bool_idx_smaller_idxplus = self.localgg_extended[idx] < self.localgg_extended[idx + 1]
-                    bool_idxminus_isequal_idx = self.localgg_extended[idx - 1] == self.localgg_extended[idx]
-                    bool_idxminus_smaller_idx = self.localgg_extended[idx - 1] < self.localgg_extended[idx]
-                    bool_idxminus_greater_idx = self.localgg_extended[idx - 1] > self.localgg_extended[idx]
+                    bool_idx_isequal_idxplus = localgg_extended[idx] == localgg_extended[idx + 1]
+                    bool_idx_greater_idxplus = localgg_extended[idx] > localgg_extended[idx + 1]
+                    bool_idx_smaller_idxplus = localgg_extended[idx] < localgg_extended[idx + 1]
+                    bool_idxminus_isequal_idx = localgg_extended[idx - 1] == localgg_extended[idx]
+                    bool_idxminus_smaller_idx = localgg_extended[idx - 1] < localgg_extended[idx]
+                    bool_idxminus_greater_idx = localgg_extended[idx - 1] > localgg_extended[idx]
 
                     # handle all cases where current value is greater than next value
                     if np.any(bool_idx_greater_idxplus):
@@ -356,35 +364,35 @@ class MapInterface:
                         if np.any(np.logical_and(bool_idx_greater_idxplus, bool_idxminus_smaller_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_greater_idxplus, bool_idxminus_smaller_idx)] = \
                                 (1 - grad) \
-                                * self.localgg_extended[idx - 1,
-                                                        np.logical_and(bool_idx_greater_idxplus,
-                                                                       bool_idxminus_smaller_idx)] \
-                                + grad * self.localgg_extended[idx + 1,
-                                                               np.logical_and(bool_idx_greater_idxplus,
-                                                                              bool_idxminus_smaller_idx)]
+                                * localgg_extended[idx - 1,
+                                                   np.logical_and(bool_idx_greater_idxplus,
+                                                                  bool_idxminus_smaller_idx)] \
+                                + grad * localgg_extended[idx + 1,
+                                                          np.logical_and(bool_idx_greater_idxplus,
+                                                                         bool_idxminus_smaller_idx)]
 
                         # handle case where last value is greater than current value
                         if np.any(np.logical_and(bool_idx_greater_idxplus, bool_idxminus_greater_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_greater_idxplus, bool_idxminus_greater_idx)] = \
                                 (1 - grad) \
-                                * self.localgg_extended[idx,
-                                                        np.logical_and(bool_idx_greater_idxplus,
-                                                                       bool_idxminus_greater_idx)] \
-                                + grad * self.localgg_extended[idx + 1,
-                                                               np.logical_and(bool_idx_greater_idxplus,
-                                                                              bool_idxminus_greater_idx)]
+                                * localgg_extended[idx,
+                                                   np.logical_and(bool_idx_greater_idxplus,
+                                                                  bool_idxminus_greater_idx)] \
+                                + grad * localgg_extended[idx + 1,
+                                                          np.logical_and(bool_idx_greater_idxplus,
+                                                                         bool_idxminus_greater_idx)]
 
                         # TODO test!
                         # handle case where last value is equal to current value
                         if np.any(np.logical_and(bool_idx_greater_idxplus, bool_idxminus_isequal_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_greater_idxplus, bool_idxminus_isequal_idx)] = \
                                 (1 - grad) \
-                                * self.localgg_extended[idx,
-                                                        np.logical_and(bool_idx_greater_idxplus,
-                                                                       bool_idxminus_isequal_idx)] \
-                                + grad * self.localgg_extended[idx + 1,
-                                                               np.logical_and(bool_idx_greater_idxplus,
-                                                                              bool_idxminus_isequal_idx)]
+                                * localgg_extended[idx,
+                                                   np.logical_and(bool_idx_greater_idxplus,
+                                                                  bool_idxminus_isequal_idx)] \
+                                + grad * localgg_extended[idx + 1,
+                                                          np.logical_and(bool_idx_greater_idxplus,
+                                                                         bool_idxminus_isequal_idx)]
 
                     # handle all cases where current value is smaller than next value
                     if np.any(bool_idx_smaller_idxplus):
@@ -393,31 +401,30 @@ class MapInterface:
                         if np.any(np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_smaller_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_smaller_idx)] = \
                                 (1 - grad) \
-                                * self.localgg_extended[idx - 1,
-                                                        np.logical_and(bool_idx_smaller_idxplus,
-                                                                       bool_idxminus_smaller_idx)] \
-                                + grad * self.localgg_extended[idx,
-                                                               np.logical_and(bool_idx_smaller_idxplus,
-                                                                              bool_idxminus_smaller_idx)]
+                                * localgg_extended[idx - 1,
+                                                   np.logical_and(bool_idx_smaller_idxplus,
+                                                                  bool_idxminus_smaller_idx)] \
+                                + grad * localgg_extended[idx,
+                                                          np.logical_and(bool_idx_smaller_idxplus,
+                                                                         bool_idxminus_smaller_idx)]
 
                         # handle case where last value is greater than current value
                         if np.any(np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_greater_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_greater_idx)] = \
-                                self.localgg_extended[idx, np.logical_and(bool_idx_smaller_idxplus,
-                                                                          bool_idxminus_greater_idx)]
+                                localgg_extended[idx, np.logical_and(bool_idx_smaller_idxplus,
+                                                                     bool_idxminus_greater_idx)]
 
                         # TODO test!
                         # handle case where last value is equal to current value
                         if np.any(np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_isequal_idx)):
 
                             ax_out[idx_ax_out, np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_isequal_idx)] = \
-                                self.localgg_extended[idx, np.logical_and(bool_idx_smaller_idxplus,
-                                                                          bool_idxminus_isequal_idx)]
+                                localgg_extended[idx, np.logical_and(bool_idx_smaller_idxplus,
+                                                                     bool_idxminus_isequal_idx)]
 
                     # handle all cases where current value is equal to next value
                     if np.any(bool_idx_isequal_idxplus):
-                        ax_out[idx_ax_out, bool_idx_isequal_idxplus] = self.localgg_extended[idx,
-                                                                                             bool_idx_isequal_idxplus]
+                        ax_out[idx_ax_out, bool_idx_isequal_idxplus] = localgg_extended[idx, bool_idx_isequal_idxplus]
 
                     idx_ax_out += 1
 
@@ -494,44 +501,80 @@ class MapInterface:
                     # if current data mode is global_constant and data is received, switch to global_variable
                     if self.data_mode == 'global_constant':
                         self.localgg_mps2 = np.ones((self.coordinates_sxy_m.shape[0], 1)) * self.localgg_mps2
-                        self.localgg_extended = np.vstack((self.localgg_mps2[-2, :], self.localgg_mps2))
                         self.data_mode = 'global_variable'
 
                 self.__localgg_lastupdate = data_tpainterface[:, 3:5]
 
-                # update stored tpamap besides planning horizon of local trajectory planer -----------------------------
-                if self.__s_egopos_m is not None and self.__s_ltpllookahead_m is not None:
+                self.insert_tpa_updates(array_fill=self.__localgg_lastupdate)
 
-                    s_horizon_fw_m = self.__s_ltpllookahead_m + self.__s_lookahead_safety_m
-                    s_horizon_bw_m = self.__s_egopos_m - self.__s_lookback_safety_m
+    # ------------------------------------------------------------------------------------------------------------------
 
-                    if s_horizon_fw_m > self.s_tot_m:
-                        s_horizon_fw_m -= self.s_tot_m
+    def insert_tpa_updates(self,
+                           array_fill: np.array):
 
-                    if s_horizon_bw_m < 0:
-                        s_horizon_bw_m += self.s_tot_m
+        # update stored tpamap besides planning horizon of local trajectory planer -----------------------------
+        if self.__s_egopos_m is not None and self.__s_ltpllookahead_m is not None:
 
-                    idx_start = np.argmin(np.abs(s_horizon_fw_m - self.coordinates_sxy_m[:, 0]))
-                    idx_end = np.argmin(np.abs(s_horizon_bw_m - self.coordinates_sxy_m[:, 0]))
+            s_horizon_fw_m = self.__s_ltpllookahead_m + self.__s_lookahead_safety_m
+            s_horizon_bw_m = self.__s_egopos_m - self.__s_lookback_safety_m
 
-                    # TODO: abort when track is short that planning horizon "overtakes" ego position
+            if s_horizon_fw_m > self.s_tot_m:
+                s_horizon_fw_m -= self.s_tot_m
 
-                    if idx_start >= idx_end:
-                        self.localgg_mps2[idx_start:, :] = self.__localgg_lastupdate[idx_start:, :].copy()
-                        self.localgg_mps2[:idx_end, :] = self.__localgg_lastupdate[:idx_end, :].copy()
+            if s_horizon_bw_m < 0:
+                s_horizon_bw_m += self.s_tot_m
 
-                    else:
-                        self.localgg_mps2[idx_start:idx_end, :] = self.__localgg_lastupdate[idx_start:idx_end, :].copy()
+            idx_start = np.argmin(np.abs(s_horizon_fw_m - self.coordinates_sxy_m[:, 0]))
+            idx_end = np.argmin(np.abs(s_horizon_bw_m - self.coordinates_sxy_m[:, 0]))
 
-                    self.localgg_extended = np.vstack((self.localgg_mps2[-2, :], self.localgg_mps2))
+            # TODO: abort when track is short that planning horizon "overtakes" ego position
 
-                    """
-                    logging.debug("Current Tire Performance Parameters: "
-                                 "max ax {}, min ax {}, max ay {}, min ay {}".format(np.max(localgg_mps2[:, 1]),
-                                                                                     np.min(localgg_mps2[:, 1]),
-                                                                                     np.max(localgg_mps2[:, 2]),
-                                                                                     np.min(localgg_mps2[:, 2])))
-                    """
+            if idx_start >= idx_end:
+                self.localgg_mps2[idx_start:, :] = array_fill[idx_start:, :].copy()
+                self.localgg_mps2[:idx_end, :] = array_fill[:idx_end, :].copy()
+
+            else:
+                self.localgg_mps2[idx_start:idx_end, :] = array_fill[idx_start:idx_end, :].copy()
+
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def set_acclim_strategy(self,
+                            ax_strat_mps2: float,
+                            ay_strat_mps2: float,
+                            bool_isactivate_strategy: bool):
+        """Updates the tpa-map with acceleration limits which are set via race control.
+
+        :param ax_strat_mps2: long. acceleration limit from race control
+        :type ax_strat_mps2: float
+        :param ay_strat_mps2: lat. acceleration limit from race control
+        :type ay_strat_mps2: float
+        :param bool_isactivate_strategy: flag to indicate whether or not race control target is active
+        :type bool_isactivate_strategy: bool
+        """
+
+        if not bool_isactivate_strategy:
+
+            i_rows = self.coordinates_sxy_m.shape[0]
+
+            if self.__count_velocity_steps == 1:
+                i_columns = 1
+
+            else:
+                i_columns = self.__count_velocity_steps - 1
+
+            manip_localgg_mps2 = np.tile(np.hstack((np.full((i_rows, 1), ax_strat_mps2),
+                                                    np.full((i_rows, 1), ay_strat_mps2))), i_columns)
+
+        # detect when strategy stops to send acceleration limits
+        if self.bool_isactivate_strategy != bool_isactivate_strategy and not bool_isactivate_strategy:
+            self.bool_switchedoff_strat = True
+
+            self.localgg_strat_mps2 = self.localgg_mps2.copy()
+
+        else:
+            self.bool_switchedoff_strat = False
+
+        self.bool_isactivate_strategy = bool_isactivate_strategy
 
 
 # ----------------------------------------------------------------------------------------------------------------------
