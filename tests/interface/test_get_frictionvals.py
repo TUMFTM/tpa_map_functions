@@ -124,11 +124,25 @@ while True:
                                                       position_mode='xy-cosy',
                                                       velocity_mps=arr_velocity_mps)
 
+        acc_emergency = myInterface.get_acclim_tpainterface(position_m=np.asarray(0),
+                                                            position_mode='emergency',
+                                                            velocity_mps=np.arange(0, 100, 10))
+
     else:
         acc_lim = myInterface.get_acclim_tpainterface(position_m=trajectory,
                                                       position_mode='xy-cosy')
 
+        acc_emergency = myInterface.get_acclim_tpainterface(position_m=np.asarray(0),
+                                                            position_mode='emergency')
+
     myInterface.update()
+
+    # simulate race strategy intervention
+    # if traj_scoord_m[-1] > 500 and traj_scoord_m[-1] < 1200:
+    #     myInterface.set_acclim_strategy(10, 8, True)
+
+    # elif traj_scoord_m[-1] > 1200:
+    #     myInterface.set_acclim_strategy(1, 1, False)
 
     duration = time.perf_counter() - t_start
     sleep_time = 1 / updateFrequency - duration
