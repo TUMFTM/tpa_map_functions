@@ -227,8 +227,10 @@ class MapInterface:
         # Check function arguments for validity ------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        # check if position mode is valid
-        if position_mode == 'xy-cosy':
+        if position_mode == 'emergency':
+            pass
+
+        elif position_mode == 'xy-cosy':
             count_columns = 2
 
         elif position_mode == 's-cosy':
@@ -264,6 +266,16 @@ class MapInterface:
         # TODO check if velocity array has correct shape and dimension
 
         # --------------------------------------------------------------------------------------------------------------
+        # Choose acceleration limit values according to strategy module ------------------------------------------------
+        # --------------------------------------------------------------------------------------------------------------
+
+        if self.bool_isactivate_strategy:
+            localgg_mps2 = self.localgg_strat_mps2
+
+        else:
+            localgg_mps2 = self.localgg_mps2
+
+        # --------------------------------------------------------------------------------------------------------------
         # Fetch location-dependent and -independent acceleration limits ------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
@@ -271,21 +283,21 @@ class MapInterface:
         if self.data_mode == 'global_constant':
 
             if self.__bool_enable_velocitydependence:
-                localgg = np.ones((count_rows, 2))
+                localgg_out = np.ones((count_rows, 2))
 
-                ax = np.interp(velocity_mps, self.velocity_steps[1:], self.localgg_mps2[0][0::2])
-                ay = np.interp(velocity_mps, self.velocity_steps[1:], self.localgg_mps2[0][1::2])
+                ax = np.interp(velocity_mps, self.velocity_steps[1:], localgg_mps2[0][0::2])
+                ay = np.interp(velocity_mps, self.velocity_steps[1:], localgg_mps2[0][1::2])
 
-                localgg = np.hstack((ax, ay))
+                localgg_out = np.hstack((ax, ay))
 
             else:
-                localgg = np.ones((count_rows, 2)) * self.localgg_mps2[0]
+                localgg_out = np.ones((count_rows, 2)) * localgg_mps2[0]
 
         # calculate location-dependent acceleration limits ('global variable') -----------------------------------------
         elif self.data_mode == 'global_variable':
 
             # extend localgg array for interpolation
-            localgg_extended = np.vstack((self.localgg_mps2[-2, :], self.localgg_mps2))
+            localgg_extended = np.vstack((localgg_mps2[-2, :], localgg_mps2))
 
             # calculate s-coordinate when xy-coordinates are provided
             if position_mode == 'xy-cosy':
@@ -346,8 +358,8 @@ class MapInterface:
                                      (self.coordinates_sxy_m_extended[idx + 1, 0]
                                      - self.coordinates_sxy_m_extended[idx, 0]))
 
-                    # Check Neighbouring Cells -------------------------------------------------------------------------
-                    # check neighbouring cell values to always guarantee a conservative acceleration limit
+                    # Check Neighboring Cells --------------------------------------------------------------------------
+                    # check neighboring cell values to always guarantee a conservative acceleration limit
 
                     # get information of neighbouring data separately for ax and ay
                     bool_idx_isequal_idxplus = localgg_extended[idx] == localgg_extended[idx + 1]
@@ -364,35 +376,28 @@ class MapInterface:
                         if np.any(np.logical_and(bool_idx_greater_idxplus, bool_idxminus_smaller_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_greater_idxplus, bool_idxminus_smaller_idx)] = \
                                 (1 - grad) \
-                                * localgg_extended[idx - 1,
-                                                   np.logical_and(bool_idx_greater_idxplus,
-                                                                  bool_idxminus_smaller_idx)] \
-                                + grad * localgg_extended[idx + 1,
-                                                          np.logical_and(bool_idx_greater_idxplus,
-                                                                         bool_idxminus_smaller_idx)]
+                                * localgg_extended[idx - 1, np.logical_and(bool_idx_greater_idxplus,
+                                                                           bool_idxminus_smaller_idx)] \
+                                + grad * localgg_extended[idx + 1, np.logical_and(bool_idx_greater_idxplus,
+                                                                                  bool_idxminus_smaller_idx)]
 
                         # handle case where last value is greater than current value
                         if np.any(np.logical_and(bool_idx_greater_idxplus, bool_idxminus_greater_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_greater_idxplus, bool_idxminus_greater_idx)] = \
                                 (1 - grad) \
-                                * localgg_extended[idx,
-                                                   np.logical_and(bool_idx_greater_idxplus,
-                                                                  bool_idxminus_greater_idx)] \
-                                + grad * localgg_extended[idx + 1,
-                                                          np.logical_and(bool_idx_greater_idxplus,
-                                                                         bool_idxminus_greater_idx)]
+                                * localgg_extended[idx, np.logical_and(bool_idx_greater_idxplus,
+                                                                       bool_idxminus_greater_idx)] \
+                                + grad * localgg_extended[idx + 1, np.logical_and(bool_idx_greater_idxplus,
+                                                                                  bool_idxminus_greater_idx)]
 
-                        # TODO test!
                         # handle case where last value is equal to current value
                         if np.any(np.logical_and(bool_idx_greater_idxplus, bool_idxminus_isequal_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_greater_idxplus, bool_idxminus_isequal_idx)] = \
                                 (1 - grad) \
-                                * localgg_extended[idx,
-                                                   np.logical_and(bool_idx_greater_idxplus,
-                                                                  bool_idxminus_isequal_idx)] \
-                                + grad * localgg_extended[idx + 1,
-                                                          np.logical_and(bool_idx_greater_idxplus,
-                                                                         bool_idxminus_isequal_idx)]
+                                * localgg_extended[idx, np.logical_and(bool_idx_greater_idxplus,
+                                                                       bool_idxminus_isequal_idx)] \
+                                + grad * localgg_extended[idx + 1, np.logical_and(bool_idx_greater_idxplus,
+                                                                                  bool_idxminus_isequal_idx)]
 
                     # handle all cases where current value is smaller than next value
                     if np.any(bool_idx_smaller_idxplus):
@@ -401,12 +406,10 @@ class MapInterface:
                         if np.any(np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_smaller_idx)):
                             ax_out[idx_ax_out, np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_smaller_idx)] = \
                                 (1 - grad) \
-                                * localgg_extended[idx - 1,
-                                                   np.logical_and(bool_idx_smaller_idxplus,
-                                                                  bool_idxminus_smaller_idx)] \
-                                + grad * localgg_extended[idx,
-                                                          np.logical_and(bool_idx_smaller_idxplus,
-                                                                         bool_idxminus_smaller_idx)]
+                                * localgg_extended[idx - 1, np.logical_and(bool_idx_smaller_idxplus,
+                                                                           bool_idxminus_smaller_idx)] \
+                                + grad * localgg_extended[idx, np.logical_and(bool_idx_smaller_idxplus,
+                                                                              bool_idxminus_smaller_idx)]
 
                         # handle case where last value is greater than current value
                         if np.any(np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_greater_idx)):
@@ -414,7 +417,6 @@ class MapInterface:
                                 localgg_extended[idx, np.logical_and(bool_idx_smaller_idxplus,
                                                                      bool_idxminus_greater_idx)]
 
-                        # TODO test!
                         # handle case where last value is equal to current value
                         if np.any(np.logical_and(bool_idx_smaller_idxplus, bool_idxminus_isequal_idx)):
 
@@ -446,7 +448,7 @@ class MapInterface:
 
                     idx_list.append(idx)
 
-                ax_out = self.localgg_mps2[idx_list, :]
+                ax_out = localgg_mps2[idx_list, :]
 
             # if velocity dependence is enabled, the local acceleration limits are interpolated
             if self.__bool_enable_velocitydependence:
@@ -458,17 +460,17 @@ class MapInterface:
                     ax.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[0::2]))
                     ay.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[1::2]))
 
-                localgg = np.hstack((ax, ay))
+                localgg_out = np.hstack((ax, ay))
 
             else:
-                localgg = ax_out.copy()
+                localgg_out = ax_out.copy()
 
         # raise error, if shape of return localgg is not equal to input trajectory; must have same length
-        if position_m.shape[0] != localgg.shape[0]:
+        if position_m.shape[0] != localgg_out.shape[0]:
             raise ValueError('TPA MapInterface: number of rows of arrays for position request (input) and localgg '
                              '(output) do not match!')
 
-        return localgg
+        return localgg_out
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -505,14 +507,26 @@ class MapInterface:
 
                 self.__localgg_lastupdate = data_tpainterface[:, 3:5]
 
-                self.insert_tpa_updates(array_fill=self.__localgg_lastupdate)
+                self.localgg_mps2 = self.insert_tpa_updates(array_to_update=self.localgg_mps2,
+                                                            array_data=self.__localgg_lastupdate)
 
     # ------------------------------------------------------------------------------------------------------------------
 
     def insert_tpa_updates(self,
-                           array_fill: np.array):
+                           array_to_update: np.array,
+                           array_data: np.array):
+        """Inserts local acceleration limits into the localgg array with respect to the planning horizon of the local
+           trajectory planner.
 
-        # update stored tpamap besides planning horizon of local trajectory planer -----------------------------
+        :param array_to_update: [description]
+        :type array_to_update: np.array
+        :param array_data: [description]
+        :type array_data: np.array
+        :return: [description]
+        :rtype: np.array
+        """
+
+        # update stored tpamap besides planning horizon of local trajectory planer
         if self.__s_egopos_m is not None and self.__s_ltpllookahead_m is not None:
 
             s_horizon_fw_m = self.__s_ltpllookahead_m + self.__s_lookahead_safety_m
@@ -530,11 +544,13 @@ class MapInterface:
             # TODO: abort when track is short that planning horizon "overtakes" ego position
 
             if idx_start >= idx_end:
-                self.localgg_mps2[idx_start:, :] = array_fill[idx_start:, :].copy()
-                self.localgg_mps2[:idx_end, :] = array_fill[:idx_end, :].copy()
+                array_to_update[idx_start:, :] = array_data[idx_start:, :]
+                array_to_update[:idx_end, :] = array_data[:idx_end, :]
 
             else:
-                self.localgg_mps2[idx_start:idx_end, :] = array_fill[idx_start:idx_end, :].copy()
+                array_to_update[idx_start:idx_end, :] = array_data[idx_start:idx_end, :]
+
+            return array_to_update.copy()
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -552,18 +568,17 @@ class MapInterface:
         :type bool_isactivate_strategy: bool
         """
 
-        if not bool_isactivate_strategy:
+        # check whether strategy limitations are active
+        if bool_isactivate_strategy:
 
             i_rows = self.coordinates_sxy_m.shape[0]
-
-            if self.__count_velocity_steps == 1:
-                i_columns = 1
-
-            else:
-                i_columns = self.__count_velocity_steps - 1
+            i_columns = self.__count_velocity_steps
 
             manip_localgg_mps2 = np.tile(np.hstack((np.full((i_rows, 1), ax_strat_mps2),
                                                     np.full((i_rows, 1), ay_strat_mps2))), i_columns)
+
+            self.localgg_strat_mps2 = self.insert_tpa_updates(array_to_update=self.localgg_strat_mps2,
+                                                              array_data=manip_localgg_mps2)
 
         # detect when strategy stops to send acceleration limits
         if self.bool_isactivate_strategy != bool_isactivate_strategy and not bool_isactivate_strategy:
