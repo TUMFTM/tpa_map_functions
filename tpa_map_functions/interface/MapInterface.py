@@ -132,7 +132,7 @@ class MapInterface:
         else:
             self.localgg_mps2 = tpamap[:, 3:5]
 
-        self.localgg_backup_mps2 = self.localgg_mps2.copy()
+        # create separate localgg array for strategy updates
         self.localgg_strat_mps2 = self.localgg_mps2.copy()
 
         # skip when global constant values are used
@@ -200,7 +200,6 @@ class MapInterface:
                                 velocity_mps: np.array = np.asarray([])) -> np.array:
         """Provides an interface between the local acceleration limit map and the trajectory planer
 
-        Input
         :param position_m: contains xy- or s-coordinates of planed path for request of local acceleration limits
         :type position_m: np.array
         :param position_mode: specifies whether xy-coordinates or s-coordinates are provided via 'position_m'
@@ -209,16 +208,6 @@ class MapInterface:
                              calculated, defaults to np.asarray([])
         :type velocity_mps: np.array, optional
 
-        Error
-        :raises ValueError: [description]
-        :raises ValueError: [description]
-        :raises ValueError: [description]
-        :raises ValueError: [description]
-        :raises ValueError: [description]
-        :raises error: [description]
-        :raises ValueError: [description]
-
-        Output
         :return localgg: contains longitudinal and lateral acceleration limit for every requested position
         :rtype: np.array
         """
@@ -227,37 +216,34 @@ class MapInterface:
         # Check function arguments for validity ------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        if position_mode == 'emergency':
-            pass
+        if position_mode != 'emergency':
 
-        elif position_mode == 'xy-cosy':
-            count_columns = 2
+            if position_mode == 'xy-cosy':
+                count_columns = 2
 
-        elif position_mode == 's-cosy':
-            count_columns = 1
+            elif position_mode == 's-cosy':
+                count_columns = 1
 
-        else:
-            raise ValueError('TPA MAPInterface: unknown position mode during local acceleration limit request!')
+            else:
+                raise ValueError('TPA MAPInterface: unknown position mode during local acceleration limit request!')
 
-        # check if number of columns is valid depending on what position information is provided
-        if position_m.ndim == 1:
-            count_rows = 1
+            # check if number of columns is valid depending on what position information is provided
+            if position_m.ndim == 1:
+                count_rows = 1
 
-            if position_m.size != count_columns:
-                raise ValueError('TPA MapInterface: wrong shape of position data during local gg request!')
+                if position_m.size != count_columns:
+                    raise ValueError('TPA MapInterface: wrong shape of position data during local gg request!')
 
-        elif position_m.ndim == 2:
-            count_rows = position_m.shape[0]
+            elif position_m.ndim == 2:
+                count_rows = position_m.shape[0]
 
-            if position_m.shape[1] != count_columns:
-                raise ValueError('TPA MapInterface: wrong shape of position data during local gg request!')
+                if position_m.shape[1] != count_columns:
+                    raise ValueError('TPA MapInterface: wrong shape of position data during local gg request!')
 
         # check if velocity dependence is enabled and velocity values are provided
-
-        # TODO: uncomment when trajectory planner is ready
-        # if not self.__bool_enable_velocitydependence and velocity_mps.size != 0:
-        #    raise ValueError('TPA MapInterface: velocity for velocity dependent acc. limits request is provided, but '
-        #                     'velocity dependence is disbaled!')
+        if not self.__bool_enable_velocitydependence and velocity_mps.size != 0:
+            raise ValueError('TPA MapInterface: velocity for velocity dependent acc. limits request is provided, but '
+                             'velocity dependence is disbaled!')
 
         if self.__bool_enable_velocitydependence and velocity_mps.size == 0:
             raise ValueError('TPA MapInterface: velocity dependence is enabled, but no velocity is provided for '
@@ -266,18 +252,40 @@ class MapInterface:
         # TODO check if velocity array has correct shape and dimension
 
         # --------------------------------------------------------------------------------------------------------------
-        # Choose acceleration limit values according to strategy module ------------------------------------------------
+        # Handle request for emergency trajectory generation -----------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
+        # use max. acc, limits for emergency trajectory calculation (not reduced limits from strategy)
+        if position_mode == 'emergency':
+
+            # use min. acc. limit value for each velocity step
+            ax_tmp = np.min(self.localgg_mps2[:, 0::2], axis=0)
+            ay_tmp = np.min(self.localgg_mps2[:, 1::2], axis=0)
+
+            if self.__bool_enable_velocitydependence:
+
+                ax = []
+                ay = []
+
+                for ele in velocity_mps:
+                    ax.append(np.interp(ele, self.velocity_steps[1:], ax_tmp))
+                    ay.append(np.interp(ele, self.velocity_steps[1:], ay_tmp))
+
+                return np.hstack((np.asarray(ax)[:, np.newaxis], np.asarray(ay)[:, np.newaxis]))
+
+            else:
+                return np.hstack((ax_tmp[0], ay_tmp[0]))[np.newaxis, :]
+
+        # --------------------------------------------------------------------------------------------------------------
+        # Fetch location-dependent and -independent acceleration limits ------------------------------------------------
+        # --------------------------------------------------------------------------------------------------------------
+
+        # use tpa-map with updates from strategy if active, else use original tpa-map
         if self.bool_isactivate_strategy:
             localgg_mps2 = self.localgg_strat_mps2
 
         else:
             localgg_mps2 = self.localgg_mps2
-
-        # --------------------------------------------------------------------------------------------------------------
-        # Fetch location-dependent and -independent acceleration limits ------------------------------------------------
-        # --------------------------------------------------------------------------------------------------------------
 
         # calculate location-independent acceleration limits ('global constant') ---------------------------------------
         if self.data_mode == 'global_constant':
@@ -295,9 +303,6 @@ class MapInterface:
 
         # calculate location-dependent acceleration limits ('global variable') -----------------------------------------
         elif self.data_mode == 'global_variable':
-
-            # extend localgg array for interpolation
-            localgg_extended = np.vstack((localgg_mps2[-2, :], localgg_mps2))
 
             # calculate s-coordinate when xy-coordinates are provided
             if position_mode == 'xy-cosy':
@@ -340,6 +345,9 @@ class MapInterface:
 
             # if True, interpolate acceleration limits of actual s-position between given s-coordinates of map
             if self.__bool_enable_interpolation:
+
+                # extend localgg array for interpolation
+                localgg_extended = np.vstack((localgg_mps2[-2, :], localgg_mps2))
 
                 # initialize empty local gg array containing one column for each velocity step
                 ax_out = np.zeros((s_actual_m.shape[0], self.__count_velocity_steps * 2))
