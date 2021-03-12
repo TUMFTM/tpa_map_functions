@@ -194,6 +194,7 @@ class MapInterface:
 
     # ------------------------------------------------------------------------------------------------------------------
 
+    # @profile
     def get_acclim_tpainterface(self,
                                 position_m: np.array,
                                 position_mode: str,
@@ -461,12 +462,38 @@ class MapInterface:
             # if velocity dependence is enabled, the local acceleration limits are interpolated
             if self.__bool_enable_velocitydependence:
 
-                ax = []
-                ay = []
+                version = 2
 
-                for i, row in enumerate(ax_out):
-                    ax.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[0::2]))
-                    ay.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[1::2]))
+                # TEST
+                # velocity_mps= np.linspace(1,97,100)[:, np.newaxis]
+
+                if version == 1:
+
+                    ax = []
+                    ay = []
+                    for i in range(ax_out.shape[0]):
+                        ax.append(np.interp(velocity_mps[i], self.velocity_steps[1:], ax_out[i, 0::2]))
+                        ay.append(np.interp(velocity_mps[i], self.velocity_steps[1:], ax_out[i, 1::2]))
+
+                elif version == 2:
+
+                    x = velocity_mps
+                    xp = np.hstack((self.velocity_steps, 150))
+                    fp = np.concatenate((ax_out[:, :2], ax_out, ax_out[:, -2:]), axis=1)
+
+                    j = np.searchsorted(xp, x) - 1
+                    j[j < 0] = 0
+
+                    d = (x - xp[j]) / (xp[j + 1] - xp[j])
+
+                    ax = (1 - d) * np.take_along_axis(fp[:, 0::2], j, axis=1)
+                    + np.take_along_axis(fp[:, 0::2], j + 1, axis=1) * d
+
+                    ay = (1 - d) * np.take_along_axis(fp[:, 1::2], j, axis=1)
+                    + np.take_along_axis(fp[:, 1::2], j + 1, axis=1) * d
+
+                # print(np.max(np.abs(ax_new - ax)))
+                # print(np.max(np.abs(ay_new - ay)))
 
                 localgg_out = np.hstack((ax, ay))
 

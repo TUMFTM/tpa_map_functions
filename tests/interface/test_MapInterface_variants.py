@@ -49,11 +49,11 @@ for ele in [False, True]:
                                            bool_enable_interpolation=ele,
                                            bool_enable_velocitydependence=bool_enable_velocitydependence[counter])
 
-        pos_xy = np.random.rand(250, 2)
-        pos_s = np.arange(0, 1501, 100)[:, np.newaxis]
+        pos_xy = np.random.rand(566, 2)
+        pos_s = np.arange(0, 1501, 25)[:, np.newaxis]
 
         if bool_enable_velocitydependence[counter]:
-            velocity_xy = np.random.rand(250, 1) * 100
+            velocity_xy = np.random.rand(566, 1) * 100
             velocity_s = np.random.rand(pos_s.shape[0], pos_s.shape[1]) * 100
 
         else:

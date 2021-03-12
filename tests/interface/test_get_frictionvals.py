@@ -114,7 +114,9 @@ while True:
     idx_stop += delta_idx
 
     if bool_enable_velocitydependence:
-        arr_velocity_mps = np.full(trajectory.shape, velocity_mps)
+
+        # arr_velocity_mps = np.full((trajectory.shape[0], 1), velocity_mps)
+        arr_velocity_mps = np.linspace(0, 94, trajectory.shape[0])[:, np.newaxis]
 
     # save start time
     t_start = time.perf_counter()
