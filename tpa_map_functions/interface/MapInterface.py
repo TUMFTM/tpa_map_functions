@@ -446,26 +446,40 @@ class MapInterface:
             else:
                 idx_list = []
 
-                for row in s_actual_m:
-                    idx = np.argmin(np.abs(self.coordinates_sxy_m[:, 0] - row)) + 0
+                version = 2
 
-                    if (self.coordinates_sxy_m_extended[idx + 1, 0] - row) > 0:
-                        idx -= 1
+                if version == 1:
 
-                        if idx < 0:
-                            idx = self.coordinates_sxy_m.shape[0]
+                    for row in s_actual_m:
+                        idx = np.argmin(np.abs(self.coordinates_sxy_m[:, 0] - row)) + 0
 
-                    idx_list.append(idx)
+                        if (self.coordinates_sxy_m_extended[idx + 1, 0] - row) > 0:
+                            idx -= 1
 
-                ax_out = localgg_mps2[idx_list, :]
+                            if idx < 0:
+                                idx = self.coordinates_sxy_m.shape[0]
+
+                        idx_list.append(idx)
+
+                    ax_out = localgg_mps2[idx_list, :]
+
+                elif version == 2:
+                    i = np.searchsorted(self.coordinates_sxy_m[:, 0], s_actual_m, side='right') - 1
+                    i[i < 0] = 0
+
+                    # print(np.max(np.abs(np.asarray(idx_list) - i)))
+
+                    ax_out = localgg_mps2[i, :]
 
             # if velocity dependence is enabled, the local acceleration limits are interpolated
             if self.__bool_enable_velocitydependence:
 
-                version = 2
-
                 # TEST
                 # velocity_mps= np.linspace(1,97,100)[:, np.newaxis]
+
+                # new version implemented due to performance issues
+                # version 2 is 2x faster
+                version = 2
 
                 if version == 1:
 
@@ -481,16 +495,18 @@ class MapInterface:
                     xp = np.hstack((self.velocity_steps, 150))
                     fp = np.concatenate((ax_out[:, :2], ax_out, ax_out[:, -2:]), axis=1)
 
+                    # sort input velocity into velocity areas between interpolation points
                     j = np.searchsorted(xp, x) - 1
                     j[j < 0] = 0
 
+                    # get interpolation factor
                     d = (x - xp[j]) / (xp[j + 1] - xp[j])
 
-                    ax = (1 - d) * np.take_along_axis(fp[:, 0::2], j, axis=1)
-                    + np.take_along_axis(fp[:, 0::2], j + 1, axis=1) * d
+                    # interpolate ax values
+                    ax = (1 - d) * np.take_along_axis(fp[:, 0::2], j, axis=1) + np.take_along_axis(fp[:, 0::2], j + 1, axis=1) * d
 
-                    ay = (1 - d) * np.take_along_axis(fp[:, 1::2], j, axis=1)
-                    + np.take_along_axis(fp[:, 1::2], j + 1, axis=1) * d
+                    # interpolate ay values
+                    ay = (1 - d) * np.take_along_axis(fp[:, 1::2], j, axis=1) + np.take_along_axis(fp[:, 1::2], j + 1, axis=1) * d
 
                 # print(np.max(np.abs(ax_new - ax)))
                 # print(np.max(np.abs(ay_new - ay)))
