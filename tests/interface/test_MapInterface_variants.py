@@ -55,10 +55,12 @@ for ele in [False, True]:
         if bool_enable_velocitydependence[counter]:
             velocity_xy = np.random.rand(566, 1) * 100
             velocity_s = np.random.rand(pos_s.shape[0], pos_s.shape[1]) * 100
+            velocity_emergency = np.arange(0, 100, 2.33)
 
         else:
             velocity_xy = np.asarray([])
             velocity_s = np.asarray([])
+            velocity_emergency = np.asarray([])
 
         # xy-coordinates
         gg_xy = MapInt.get_acclim_tpainterface(position_m=pos_xy,
@@ -69,6 +71,10 @@ for ele in [False, True]:
         gg_s = MapInt.get_acclim_tpainterface(position_m=pos_s,
                                               position_mode='s-cosy',
                                               velocity_mps=velocity_s)
+
+        acc_emergency = MapInt.get_acclim_tpainterface(position_m=np.asarray(0),
+                                                       position_mode='emergency',
+                                                       velocity_mps=velocity_emergency)
 
         if gg_xy.shape[1] != 2 and gg_s.shape[1] != 2:
             raise ValueError('TEST: TPA MapInterface: wrong shape of output local gg array!')
