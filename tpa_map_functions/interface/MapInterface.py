@@ -689,7 +689,14 @@ class MapInterface:
         else:
             self.bool_switchedoff_strat = False
 
-        self.bool_isactivate_strategy = bool_isactivate_strategy
+        # avoid processing strategy input if tpa-map does not contain coordinates of the race track (-> use varloc mode)
+        if bool_isactivate_strategy and self.localgg_mps2.shape[0] <= 1:
+            self.bool_isactivate_strategy = False
+            print('TPA MapInterface: WARNING: strategy input is ignored! intial localgg map must contain variable '
+                  'location info!')
+
+        else:
+            self.bool_isactivate_strategy = bool_isactivate_strategy
 
 
 # ----------------------------------------------------------------------------------------------------------------------
