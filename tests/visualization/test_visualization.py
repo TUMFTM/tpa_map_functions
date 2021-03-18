@@ -25,4 +25,5 @@ tmf.visualization.visualize_tpamap.visualize_tpamap(filepath2tpamap=filepath2tpa
                                                     refline=dict_output['refline'],
                                                     width_right=dict_output['width_right'],
                                                     width_left=dict_output['width_left'],
-                                                    normvec_normalized=dict_output['normvec_normalized'])
+                                                    normvec_normalized=dict_output['normvec_normalized'],
+                                                    distance_scoord_labels=200)
