@@ -194,6 +194,7 @@ class MapInterface:
 
     # ------------------------------------------------------------------------------------------------------------------
 
+    # @profile
     def get_acclim_tpainterface(self,
                                 position_m: np.array,
                                 position_mode: str,
@@ -259,22 +260,35 @@ class MapInterface:
         if position_mode == 'emergency':
 
             # use min. acc. limit value for each velocity step
-            ax_tmp = np.min(self.localgg_mps2[:, 0::2], axis=0)
-            ay_tmp = np.min(self.localgg_mps2[:, 1::2], axis=0)
+            localgg_emergency_min = np.min(self.localgg_mps2[:, :], axis=0)
 
             if self.__bool_enable_velocitydependence:
 
-                ax = []
-                ay = []
+                version = 2
 
-                for ele in velocity_mps:
-                    ax.append(np.interp(ele, self.velocity_steps[1:], ax_tmp))
-                    ay.append(np.interp(ele, self.velocity_steps[1:], ay_tmp))
+                if version == 1:
+                    ax = []
+                    ay = []
+
+                    ax_tmp = np.min(self.localgg_mps2[:, 0::2], axis=0)
+                    ay_tmp = np.min(self.localgg_mps2[:, 1::2], axis=0)
+
+                    for ele in velocity_mps:
+                        ax.append(np.interp(ele, self.velocity_steps[1:], ax_tmp))
+                        ay.append(np.interp(ele, self.velocity_steps[1:], ay_tmp))
+
+                elif version == 2:
+
+                    ax, ay = self.interp_velocitysteps(x=velocity_mps,
+                                                       xp=np.hstack((self.velocity_steps, 150)),
+                                                       fp=np.concatenate((localgg_emergency_min[:2],
+                                                                          localgg_emergency_min,
+                                                                          localgg_emergency_min[-2:])))
 
                 return np.hstack((np.asarray(ax)[:, np.newaxis], np.asarray(ay)[:, np.newaxis]))
 
             else:
-                return np.hstack((ax_tmp[0], ay_tmp[0]))[np.newaxis, :]
+                return np.hstack((localgg_emergency_min[0], localgg_emergency_min[1]))[np.newaxis, :]
 
         # --------------------------------------------------------------------------------------------------------------
         # Fetch location-dependent and -independent acceleration limits ------------------------------------------------
@@ -445,28 +459,58 @@ class MapInterface:
             else:
                 idx_list = []
 
-                for row in s_actual_m:
-                    idx = np.argmin(np.abs(self.coordinates_sxy_m[:, 0] - row)) + 0
+                version = 2
 
-                    if (self.coordinates_sxy_m_extended[idx + 1, 0] - row) > 0:
-                        idx -= 1
+                if version == 1:
 
-                        if idx < 0:
-                            idx = self.coordinates_sxy_m.shape[0]
+                    for row in s_actual_m:
+                        idx = np.argmin(np.abs(self.coordinates_sxy_m[:, 0] - row)) + 0
 
-                    idx_list.append(idx)
+                        if (self.coordinates_sxy_m_extended[idx + 1, 0] - row) > 0:
+                            idx -= 1
 
-                ax_out = localgg_mps2[idx_list, :]
+                            if idx < 0:
+                                idx = self.coordinates_sxy_m.shape[0]
+
+                        idx_list.append(idx)
+
+                    ax_out = localgg_mps2[idx_list, :]
+
+                elif version == 2:
+                    i = np.searchsorted(self.coordinates_sxy_m[:, 0], s_actual_m, side='right') - 1
+                    i[i < 0] = 0
+
+                    # print(np.max(np.abs(np.asarray(idx_list) - i)))
+
+                    ax_out = localgg_mps2[i, :]
 
             # if velocity dependence is enabled, the local acceleration limits are interpolated
             if self.__bool_enable_velocitydependence:
 
-                ax = []
-                ay = []
+                # TEST
+                # velocity_mps= np.linspace(1,97,100)[:, np.newaxis]
 
-                for i, row in enumerate(ax_out):
-                    ax.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[0::2]))
-                    ay.append(np.interp(velocity_mps[i], self.velocity_steps[1:], row[1::2]))
+                # new version implemented due to performance issues
+                # version 2 is 2x faster
+                version = 2
+
+                if version == 1:
+
+                    ax = []
+                    ay = []
+                    for i in range(ax_out.shape[0]):
+                        ax.append(np.interp(velocity_mps[i], self.velocity_steps[1:], ax_out[i, 0::2]))
+                        ay.append(np.interp(velocity_mps[i], self.velocity_steps[1:], ax_out[i, 1::2]))
+
+                elif version == 2:
+
+                    ax, ay = self.interp_velocitysteps(x=velocity_mps,
+                                                       xp=np.hstack((self.velocity_steps, 150)),
+                                                       fp=np.concatenate((ax_out[:, :2], ax_out, ax_out[:, -2:]),
+                                                                         axis=1))
+
+                # print(np.max(np.abs(ax_new - ax)))
+                # print(np.max(np.abs(ay_new - ay)))
 
                 localgg_out = np.hstack((ax, ay))
 
@@ -479,6 +523,54 @@ class MapInterface:
                              '(output) do not match!')
 
         return localgg_out
+
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def interp_velocitysteps(self, x: np.array, xp: np.array, fp: np.array):
+        """Interpolates acceleration limits for requested velocity steps.
+
+        Input
+        :param x:           velocity steps for which the acceleration limits are requested
+        :type x: np.array
+        :param xp:          velocity steps of the tpa-amp (velocity where accelertion limits are provided)
+        :type xp: np.array
+        :param fp:          acceleration limits used for interpolation
+        :type fp: np.array
+
+        Output
+        :return:            interpolated acceleration limits
+        :rtype: tuple
+        """
+
+        # sort input velocity into velocity areas between interpolation points
+        j = np.searchsorted(xp, x) - 1
+        j[j < 0] = 0
+
+        # get interpolation factor
+        d = (x - xp[j]) / (xp[j + 1] - xp[j])
+
+        if fp.ndim == 2:
+            fpx_temp = fp[:, 0::2]
+            fpy_temp = fp[:, 1::2]
+            axis_interp = 1
+
+        elif fp.ndim == 1:
+            fpx_temp = fp[0::2]
+            fpy_temp = fp[1::2]
+            axis_interp = 0
+
+        else:
+            raise ValueError('TPA MapInterface: dimension error of array for velocity interpolation!')
+
+        # interpolate ax values
+        ax = (1 - d) * np.take_along_axis(fpx_temp, j, axis=axis_interp) \
+            + np.take_along_axis(fpx_temp, j + 1, axis=axis_interp) * d
+
+        # interpolate ay values
+        ay = (1 - d) * np.take_along_axis(fpy_temp, j, axis=axis_interp) \
+            + np.take_along_axis(fpy_temp, j + 1, axis=axis_interp) * d
+
+        return ax, ay
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -597,7 +689,14 @@ class MapInterface:
         else:
             self.bool_switchedoff_strat = False
 
-        self.bool_isactivate_strategy = bool_isactivate_strategy
+        # avoid processing strategy input if tpa-map does not contain coordinates of the race track (-> use varloc mode)
+        if bool_isactivate_strategy and self.localgg_mps2.shape[0] <= 1:
+            self.bool_isactivate_strategy = False
+            print('TPA MapInterface: WARNING: strategy input is ignored! intial localgg map must contain variable '
+                  'location info!')
+
+        else:
+            self.bool_isactivate_strategy = bool_isactivate_strategy
 
 
 # ----------------------------------------------------------------------------------------------------------------------

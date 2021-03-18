@@ -24,11 +24,9 @@ trackname = 'berlin'
 tpamap_name = "tpamap_varloc_varvel_berlin"
 
 updateFrequency = 100
-laps = 1
-s_terminate_m = 3000
+laps_to_go = 1
+s_terminate_m = 800
 bool_plot = True
-
-velocity_mps = 20
 
 # set indices for looping reference line during tpa map interface request
 
@@ -113,8 +111,9 @@ while True:
     idx_start += delta_idx
     idx_stop += delta_idx
 
-    if bool_enable_velocitydependence:
-        arr_velocity_mps = np.full(trajectory.shape, velocity_mps)
+    # provide artificial velocity array for request
+    arr_velocity_mps = np.full((trajectory.shape[0], 1), 20)
+    # arr_velocity_mps = np.linspace(0, 94, trajectory.shape[0])[:, np.newaxis]
 
     # save start time
     t_start = time.perf_counter()
@@ -166,10 +165,7 @@ while True:
 
         log_duration = []
 
-    if lapcounter == laps:
-        break
-
-    if s_terminate_m > 0 and traj_scoord_m[-1] > s_terminate_m:
+    if laps_to_go <= lapcounter and s_terminate_m > 0 and traj_scoord_m[-1] > s_terminate_m:
         break
 
 # plot results

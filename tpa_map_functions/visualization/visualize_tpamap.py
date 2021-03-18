@@ -269,8 +269,7 @@ def visualize_tpamap(refline: np.array,
         plotting_distance_m = np.arange(0, refline_concat[-1, 0], distance_scoord_labels)
 
         for int_counter, ele in enumerate(plotting_distance_m):
-            array = np.asarray(refline_concat[:, 0])
-            idx = (np.abs(array - ele)).argmin()
+            idx = (np.abs(refline_concat[:, 0] - ele)).argmin()
 
             ax1.plot(refline_concat[idx, 1], refline_concat[idx, 2], 'bo')
             ax1.annotate('s=' + str(plotting_distance_m.tolist()[int_counter]) + ' m',
