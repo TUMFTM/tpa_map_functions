@@ -1,4 +1,4 @@
-# tpa_map_functions
+# Functions for Tire Performance Assessment Maps
 
 The software of this repository is used within the [TUM Autonomous Motorsports project](https://www.mw.tum.de/en/ftm/main-research/intelligent-vehicle-systems/roborace-autonomous-motorsport/).
 
