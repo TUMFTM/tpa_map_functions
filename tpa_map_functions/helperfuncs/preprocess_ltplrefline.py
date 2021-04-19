@@ -1,8 +1,6 @@
 import numpy as np
 import logging
 import math
-from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
 
 """
 Created by: Leonhard Hermansdorfer
@@ -209,7 +207,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     dict_output['refline_resampled'] = dict()
 
     # resample reference line with constant step size ------------------------------------------------------------------
-    if mode_resample_refline == "const_steps" or mode_resample_refline == "comb_steps":
+    if mode_resample_refline == "const_steps":
 
         # calculate stepsize as an index of reference line array
         idx_resample = int(np.round(stepsize_resample_m / diff_coordinates_m_mean))
@@ -227,6 +225,9 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     # extract every idx coordinate
     coordinates = refline_concat[::idx_resample, 1:3]
 
+    if not np.all(np.equal(coordinates[-1, :], refline_concat[-1, 1:3])):
+        coordinates = np.vstack((coordinates, refline_concat[-1, 1:3]))
+
     diff_coordinates_m = np.sqrt(np.sum(np.diff(coordinates, axis=0) ** 2, axis=1))
 
     s = np.concatenate(([0], np.cumsum(diff_coordinates_m)))
@@ -234,11 +235,11 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     refline_resampled = np.column_stack((s, coordinates))
 
     logger.warning("resample stepsize has to match stepsize of given reference line! "
-                    + "desired stepsize = " + str_log + " m; "
-                    + "continue with a mean/min/max stepsize of "
-                    + str(np.around(diff_coordinates_m_mean * idx_resample, 3)) + '/'
-                    + str(np.around(np.min(diff_coordinates_m), 3)) + '/'
-                    + str(np.around(np.max(diff_coordinates_m), 3)) + " m")
+                   + "desired stepsize = " + str_log + " m; "
+                   + "continue with a min/mean/max stepsize of "
+                   + str(np.around(np.min(diff_coordinates_m), 3)) + '/'
+                   + str(np.around(diff_coordinates_m_mean * idx_resample, 3)) + '/'
+                   + str(np.around(np.max(diff_coordinates_m), 3)) + " m")
 
     if mode_resample_refline == "const_steps":
         section_id = np.arange(1, refline_resampled.shape[0] + 1)
@@ -248,7 +249,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
 
     # resample reference line with variable step size on basis of raceline ---------------------------------------------
-    if mode_resample_refline == "var_steps" or mode_resample_refline == "comb_steps":
+    if mode_resample_refline == "var_steps":
 
         ax_trigger = [0] * ax_rl.shape[0]
         ay_trigger = [0] * ay_rl.shape[0]
@@ -443,15 +444,14 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         for idx in np.arange(len(indices) - 1):
             section_id[indices[idx]:indices[idx + 1]] = idx + 1
 
-        section_id[-1] = section_id[-2]
+        section_id[-1] = section_id[-2] + 1
 
-        dict_output['refline_resampled']['section_id'] = section_id
+        dict_output['refline_resampled']['section_id'] \
+            = (section_id * 10 + np.abs(list_section_category)) * np.sign(list_section_category)
 
-        # dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
-
+        # calculate data for debug plots
         if bool_enable_debug:
-
-            sectionid_change = np.concatenate((np.asarray([False]), np.isclose(np.diff(section_id), 1, 1e-08)))
+            sectionid_change = np.concatenate((np.asarray([True]), np.isclose(np.diff(section_id), 1, 1e-08)))
 
             dict_output['refline_resampled'].update({'ax_mps2': ax_rl,
                                                      'ay_mps2': ay_rl,
