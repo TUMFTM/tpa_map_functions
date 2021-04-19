@@ -71,8 +71,11 @@ def save_tpamap_fromfile(filepath2output_tpamap: str,
 
             long_limit_ext = np.zeros((len_refline, 1))
             lat_limit_ext = np.zeros((len_refline, 1))
+            long_limit_ext[0] = long_limit[0]
+            lat_limit_ext[0] = lat_limit[0]
 
-            sectionid_change = np.where(np.vstack((np.asarray([True]), np.abs(np.diff(section_id, axis=0)) > 0.5)))[0]
+            sectionid_change = np.where(
+                np.vstack((np.asarray([True]), np.abs(np.diff(section_id, axis=0)) > 0.5)))[0] + 1
 
             for i_count, idx in enumerate(sectionid_change[0:-1]):
                 long_limit_ext[idx:sectionid_change[i_count + 1]] = long_limit[i_count]
