@@ -244,7 +244,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     if mode_resample_refline == "const_steps":
         section_id = np.arange(1, refline_resampled.shape[0] + 1)
 
-        dict_output['refline_resampled']['section_id'] = section_id
+        dict_output['refline_resampled']['section_id'] = section_id[:, np.newaxis]
 
     dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
 
@@ -447,18 +447,18 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         section_id[-1] = section_id[-2] + 1
 
         dict_output['refline_resampled']['section_id'] \
-            = (section_id * 10 + np.abs(list_section_category)) * np.sign(list_section_category)
+            = ((section_id * 10 + np.abs(list_section_category)) * np.sign(list_section_category))[:, np.newaxis]
+
+        dict_output['refline_resampled']['sectionid_change'] \
+            = np.concatenate((np.asarray([True]), np.isclose(np.diff(section_id), 1, 1e-08)))
 
         # calculate data for debug plots
         if bool_enable_debug:
-            sectionid_change = np.concatenate((np.asarray([True]), np.isclose(np.diff(section_id), 1, 1e-08)))
-
             dict_output['refline_resampled'].update({'ax_mps2': ax_rl,
                                                      'ay_mps2': ay_rl,
                                                      'ax_trigger': ax_trigger,
                                                      'ay_trigger': ay_trigger,
-                                                     'list_section_category': list_section_category,
-                                                     'sectionid_change': sectionid_change})
+                                                     'list_section_category': list_section_category})
 
     if mode_resample_refline in ["const_steps", "var_steps"] and bool_enable_debug:
 

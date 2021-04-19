@@ -47,7 +47,7 @@ else:
                                section_length_limits_m=[section_length_min_m, section_length_max_m],
                                bool_enable_debug=bool_enable_debug)
 
-test = np.concatenate((output_data['refline_resampled']['section_id'][:, np.newaxis],
+test = np.concatenate((output_data['refline_resampled']['section_id'],
                        output_data['refline_resampled']['refline_resampled']), axis=1)
 
 if bool_enable_debug:
