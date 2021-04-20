@@ -73,24 +73,24 @@ def import_vehdyninfo(filepath2localgg: str = "") -> np.ndarray:
     # check dimension of localgg data
     if data_localggfile.ndim == 1:
 
-        if data_localggfile.size < 5:
+        if data_localggfile.size < 6:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least five columns required!')
 
-        if data_localggfile.size != 3 + count_veldep_columns:
+        if data_localggfile.size != 4 + count_veldep_columns:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header '
                              'entries does not match!')
 
 #        if data_localggfile.size > 5:
 #            print('WARNING: TPA MapInterface: shape of localgg file data -> more than five columns provided!')
 
-        tpamap = np.hstack((np.zeros(3), data_localggfile[3:]))[np.newaxis, :]
+        tpamap = np.hstack((np.zeros(4), data_localggfile[4:]))[np.newaxis, :]
 
     elif data_localggfile.ndim == 2:
 
-        if data_localggfile.shape[1] < 5:
+        if data_localggfile.shape[1] < 6:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least five columns required!')
 
-        if data_localggfile.shape[1] != 3 + count_veldep_columns:
+        if data_localggfile.shape[1] != 4 + count_veldep_columns:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header '
                              'entries does not match!')
 
@@ -100,14 +100,14 @@ def import_vehdyninfo(filepath2localgg: str = "") -> np.ndarray:
         tpamap = data_localggfile
 
         # check validity of sxy-coordinates
-        if np.any(tpamap[:, 0] < 0.0):
+        if np.any(tpamap[:, 1] < 0.0):
             raise ValueError('TPA MapInterface: one or more s-coordinate values are smaller than zero!')
 
-        if np.any(np.diff(tpamap[:, 0]) <= 0.0):
+        if np.any(np.diff(tpamap[:, 1]) <= 0.0):
             raise ValueError('TPA MapInterface: s-coordinates are not strictly monotone increasing!')
 
         # check whether endpoint and start point of s is close together in xy
-        if not np.isclose(np.hypot(tpamap[0, 1] - tpamap[-1, 1], tpamap[0, 2] - tpamap[-1, 2]), 0.0):
+        if not np.isclose(np.hypot(tpamap[0, 2] - tpamap[-1, 2], tpamap[0, 3] - tpamap[-1, 3]), 0.0):
             raise ValueError('TPA MapInterface: s-coordinates representing the race track are not closed; '
                              'first and last point are not equal!')
 
@@ -125,10 +125,10 @@ def import_vehdyninfo(filepath2localgg: str = "") -> np.ndarray:
             raise ValueError('TPA MapInterface: data import: velocity steps are not increasing monotonously!')
 
     # check local acceleration limits for validity
-    if np.any(tpamap[:, 3:] > 40.0):
+    if np.any(tpamap[:, 4:] > 40.0):
         raise ValueError('TPA MapInterface: max. acceleration limit in localgg file exceeds 40 m/s^2!')
 
-    if np.any(tpamap[:, 3:] < 1.0):
+    if np.any(tpamap[:, 4:] < 1.0):
         raise ValueError('TPA MapInterface: min. acceleration limit in localgg file is below 1 m/s^2!')
 
     return tpamap, velocity_steps[::2]
