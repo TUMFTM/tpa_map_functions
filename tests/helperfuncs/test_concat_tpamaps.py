@@ -28,7 +28,7 @@ elif mode == 'local scaling factors':
     filename_output = 'tpamap_tum_mcs.csv'
 
     # list names of local tire model scaling maps which should be concatenated
-    # NOTE: concatenating local acceleration limit data is not intended with this function. This function is build for 
+    # NOTE: concatenating local acceleration limit data is not intended with this function. This function is build for
     # concatenating local tire scaling factors. This is just an example.
     list_tpamaps = ["tpamap_berlin__27mps.csv",
                     "tpamap_berlin__56mps.csv",

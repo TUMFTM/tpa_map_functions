@@ -61,7 +61,7 @@ def concat_tpamaps_ltpl(path2tpamaps: str(),
         csv_data_tpamap = np.genfromtxt(fh, delimiter=',', comments='#')
         tpamap_size = len(csv_data_tpamap)
 
-    tpamap = np.zeros((tpamap_size, i_count_files * 2 + 3))
+    tpamap = np.zeros((tpamap_size, i_count_files * 2 + 4))
 
     # load and concatenate maps
     i_count = 0
@@ -76,14 +76,15 @@ def concat_tpamaps_ltpl(path2tpamaps: str(),
             tpamap[:, 0] = csv_data_tpamap[:, 0]
             tpamap[:, 1] = csv_data_tpamap[:, 1]
             tpamap[:, 2] = csv_data_tpamap[:, 2]
+            tpamap[:, 3] = csv_data_tpamap[:, 3]
 
         else:
 
-            if not np.all(np.equal(tpamap[:, :3], csv_data_tpamap[:, :3])):
+            if not np.all(np.equal(tpamap[:, :4], csv_data_tpamap[:, :4])):
                 raise ValueError("tpamap functions: sxy-coordinates of included tpamaps are not equal!")
 
-        tpamap[:, 3 + i_count * 2] = csv_data_tpamap[:, 3]
         tpamap[:, 4 + i_count * 2] = csv_data_tpamap[:, 4]
+        tpamap[:, 5 + i_count * 2] = csv_data_tpamap[:, 5]
         i_count += 1
 
     # TODO: plausibility checks
@@ -96,7 +97,7 @@ def concat_tpamaps_ltpl(path2tpamaps: str(),
              + datetime.datetime.now().strftime("%H:%M:%S")
 
     header = header + '\n' + 'track: ' + tpamap_identifier
-    header = header + '\n' + 's_m,x_m,y_m'
+    header = header + '\n' + 'section_id,s_m,x_m,y_m'
 
     if len(list_velsteps) <= 1:
         header = header + ',ax_max_mps2,ay_max_mps2'
