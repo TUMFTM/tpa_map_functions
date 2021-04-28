@@ -74,7 +74,7 @@ def import_vehdyninfo(filepath2localgg: str = "") -> np.ndarray:
     if data_localggfile.ndim == 1:
 
         if data_localggfile.size < 6:
-            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least five columns required!')
+            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least six columns required!')
 
         if data_localggfile.size != 4 + count_veldep_columns:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header '
@@ -88,7 +88,7 @@ def import_vehdyninfo(filepath2localgg: str = "") -> np.ndarray:
     elif data_localggfile.ndim == 2:
 
         if data_localggfile.shape[1] < 6:
-            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least five columns required!')
+            raise ValueError('TPA MapInterface: wrong shape of localgg file data -> at least six columns required!')
 
         if data_localggfile.shape[1] != 4 + count_veldep_columns:
             raise ValueError('TPA MapInterface: wrong shape of localgg file data -> number of data columns and header '

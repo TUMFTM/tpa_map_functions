@@ -4,7 +4,6 @@ import time
 import os.path
 import sys
 import ad_interface_functions
-import trajectory_planning_helpers as tph
 
 path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 sys.path.append(path2tmf)
@@ -95,14 +94,18 @@ class MapInterface:
         # Read Data File Containing Tire Performance Assessment Map ----------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        tpamap, velocity_steps = tpa_map_functions.interface.import_vehdyninfo.import_vehdyninfo(
-            filepath2localgg=filepath2localgg)
+        tpamap, velocity_steps = tpa_map_functions.interface.import_vehdyninfo.\
+            import_vehdyninfo(filepath2localgg=filepath2localgg)
 
-        self.coordinates_sxy_m = tpamap[:, 0:3]
+        self.section_id = tpamap[:, 0]
+        self.coordinates_sxy_m = tpamap[:, 1:4]
 
         # set data mode to global variable or global constant for further processing
         if tpamap.shape[0] > 1:
             self.data_mode = 'global_variable'
+            self.sectionid_change = np.concatenate((np.asarray([True]), np.diff(self.section_id) > 0))
+            self.__tpamap_cropped = self.coordinates_sxy_m[self.sectionid_change]
+
         else:
             self.data_mode = 'global_constant'
 
@@ -127,10 +130,10 @@ class MapInterface:
 
         # if true, add all local acc. limits including velocity dependence
         if self.__bool_enable_velocitydependence:
-            self.localgg_mps2 = tpamap[:, 3:]
+            self.localgg_mps2 = tpamap[:, 4:]
 
         else:
-            self.localgg_mps2 = tpamap[:, 3:5]
+            self.localgg_mps2 = tpamap[:, 4:6]
 
         # create separate localgg array for strategy updates
         self.localgg_strat_mps2 = self.localgg_mps2.copy()
@@ -321,34 +324,10 @@ class MapInterface:
             # calculate s-coordinate when xy-coordinates are provided
             if position_mode == 'xy-cosy':
 
-                distance_pathpoints = np.sqrt(np.diff(position_m[:, 0], 1) ** 2 + np.diff(position_m[:, 1], 1) ** 2)
-
-                s_actual_m = np.zeros(position_m.shape[0])
-
-                # tic_f = time.time()
-
-                # match first entry of ego position on race line s-coordinate
-                s_actual_m[0], _ = tph.path_matching_global.path_matching_global(path_cl=self.coordinates_sxy_m,
-                                                                                 ego_position=position_m[0, :])
-
-                # TODO consider adding s_expected=self.lastcoordinate_s_m, s_range=40 (didn't increase performance)
-                #  -> test again
-                # self.lastcoordinate_s_m = s_actual_m[0]
-
-                # sum up distance
-                s_actual_m[1:] = s_actual_m[0] + np.cumsum(distance_pathpoints)
-
-                # TODO write without for loop (use < on array + matrix multiplication)
-                # after timing, this seems to be faster than version below
-                for index, row in enumerate(s_actual_m):
-                    if row >= self.s_tot_m:
-                        s_actual_m[index] -= self.s_tot_m
-                    elif row < 0:
-                        s_actual_m[index] += self.s_tot_m
-
-                # s_actual_m = s_actual_m \
-                #     - np.multiply((s_actual_m > self.s_tot_m), self.s_tot_m) \
-                #     + np.multiply((s_actual_m < 0), self.s_tot_m)
+                s_actual_m = tpa_map_functions.helperfuncs.transform_coordinates_xy2s.\
+                    transform_coordinates_xy2s(coordinates_sxy_m=self.coordinates_sxy_m,
+                                               position_m=position_m,
+                                               s_tot_m=self.s_tot_m)
 
             else:
                 s_actual_m = np.hstack(position_m)
@@ -594,7 +573,9 @@ class MapInterface:
 
                 # check whether tpamap coordinates where already received
                 if not self.__bool_received_tpamap:
-                    self.coordinates_sxy_m = data_tpainterface[:, 0:3]
+                    self.coordinates_sxy_m = data_tpainterface[:, 1:4]
+                    self.section_id = data_tpainterface[:, 0]
+                    self.sectionid_change = np.concatenate((np.asarray([True]), np.diff(self.section_id) > 0))
 
                     self.format_rawtpamap()
 
@@ -605,7 +586,7 @@ class MapInterface:
                         self.localgg_mps2 = np.ones((self.coordinates_sxy_m.shape[0], 1)) * self.localgg_mps2
                         self.data_mode = 'global_variable'
 
-                self.__localgg_lastupdate = data_tpainterface[:, 3:5]
+                self.__localgg_lastupdate = data_tpainterface[:, 4:6]
 
                 self.localgg_mps2 = self.insert_tpa_updates(array_to_update=self.localgg_mps2,
                                                             array_data=self.__localgg_lastupdate)
@@ -674,6 +655,7 @@ class MapInterface:
             i_rows = self.coordinates_sxy_m.shape[0]
             i_columns = self.__count_velocity_steps
 
+            # np.tile: Construct an array by repeating A the number of times given by reps
             manip_localgg_mps2 = np.tile(np.hstack((np.full((i_rows, 1), ax_strat_mps2),
                                                     np.full((i_rows, 1), ay_strat_mps2))), i_columns)
 
