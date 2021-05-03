@@ -490,7 +490,7 @@ class Manager(tk.Canvas):
                         a_combined = (self.ax[idx_start] + self.ay[idx_start]) / 2
 
                     if idx_end == idx_start or ((idx_end < idx_start) and not self.bool_closedtrack):
-                        break
+                        continue
 
                     elif (idx_end < idx_start) and self.bool_closedtrack:
                         self.refline_manip[idx_end:idx_start, 3] = a_combined
@@ -521,7 +521,7 @@ class Manager(tk.Canvas):
                         local_scaling = (self.local_scaling_long[idx_start] + self.local_scaling_lat[idx_start]) / 2
 
                     if idx_end == idx_start or ((idx_end < idx_start) and not self.bool_closedtrack):
-                        break
+                        continue
 
                     elif (idx_end < idx_start) and self.bool_closedtrack:
                         self.refline_manip[idx_end:idx_start, 3] = local_scaling

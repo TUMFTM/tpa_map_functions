@@ -9,7 +9,7 @@ Created on: 05.09.2020
 def calc_cosyidcs(sectionid: np.array,
                   coordinates_sxy_m: np.array,
                   s_actual_m: np.array) -> tuple:
-    """Calculates current section and section indices.
+    """Calculates section and section indices of current position (as s-coordinate).
 
     :param sectionid:                   section id array of race track
     :type sectionid: np.array
