@@ -7,9 +7,6 @@ from scipy.interpolate import interp1d # noqa F401
 import matplotlib.pyplot as plt
 import tkinter as tk
 
-# testing
-from matplotlib.collections import LineCollection
-from matplotlib.colors import ListedColormap, BoundaryNorm # noqa F401
 
 # import custom modules
 path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
@@ -43,7 +40,22 @@ class Manager(tk.Canvas):
         :param master:
         :param kwargs:
         """
-        self.refline_resampled = refline_resampled
+
+        if refline_dict['refline_resampled']['section_id'][0, 0] > 1:
+            self.refline_resampled = refline_resampled[refline_dict['refline_resampled']['sectionid_change']]
+            self.__mode_stepsize = 'var_steps'
+
+        else:
+            self.refline_resampled = refline_resampled
+            self.__mode_stepsize = 'const_steps'
+
+        if gui_mode == 1 and self.__mode_stepsize == 'var_steps':
+            plt.close('all')
+            raise ValueError('When GUI is operated with friction coeff., only const. step size is allowed!')
+
+        self.__section_id = refline_dict['refline_resampled']['section_id']
+
+        self.refline_resampled_org = refline_resampled
         self.refline_dict = refline_dict
         self.refline_original = refline_dict['refline']
         self.bool_closedtrack = bool_closedtrack
@@ -172,7 +184,7 @@ class Manager(tk.Canvas):
     # ------------------------------------------------------------------------------------------------------------------
     def gui_mode_select_1(self):
         self.__init__(refline_dict=self.refline_dict,
-                      refline_resampled=self.refline_resampled,
+                      refline_resampled=self.refline_resampled_org,
                       bool_closedtrack=self.bool_closedtrack,
                       filepath2output_tpamap=self.filepath2output_tpamap,
                       gui_mode=1,
@@ -183,7 +195,7 @@ class Manager(tk.Canvas):
 
     def gui_mode_select_2(self):
         self.__init__(refline_dict=self.refline_dict,
-                      refline_resampled=self.refline_resampled,
+                      refline_resampled=self.refline_resampled_org,
                       bool_closedtrack=self.bool_closedtrack,
                       filepath2output_tpamap=self.filepath2output_tpamap,
                       gui_mode=2,
@@ -298,30 +310,37 @@ class Manager(tk.Canvas):
     # ------------------------------------------------------------------------------------------------------------------
 
     def print_stuff(self, refline_plot: np.array):
+
         header_custom = {'track': self.track_name, 'gui_mode': self.gui_mode}
+
         if not self.entries[0].get():
             print('empty')
+
         else:
             print('not empty: ' + str(self.entries[0].get()))
 
         if not self.e1.get():
             print('pendix empty')
             self.filepath2output_tpamap_save = self.filepath2output_tpamap + '.csv'
+
         else:
             print('pendix: ' + str(self.e1.get()))
             self.filepath2output_tpamap_save = self.filepath2output_tpamap + '_' + self.e1.get() + '.csv'
 
         if self.gui_mode == 2:
             tmf.helperfuncs.save_tpamap.save_tpamap_fromfile(filepath2output_tpamap=self.filepath2output_tpamap_save,
-                                                             coordinates_sxy_m=refline_plot[:, :3],
+                                                             mode_save_tpamap='acclimits',
+                                                             coordinates_sxy_m=self.refline_resampled_org,
                                                              long_limit=self.ax,
                                                              lat_limit=self.ay,
+                                                             section_id=self.__section_id,
                                                              header_info=header_custom,
                                                              track_name=self.track_name)
 
         else:
             tmf.helperfuncs.save_tpamap.save_tpamap_fromfile(filepath2output_tpamap=self.filepath2output_tpamap_save,
-                                                             coordinates_sxy_m=refline_plot[:, :3],
+                                                             mode_save_tpamap='frictioncoeff',
+                                                             coordinates_sxy_m=self.refline_resampled_org,
                                                              long_limit=self.local_scaling_long,
                                                              lat_limit=self.local_scaling_lat,
                                                              header_info=header_custom,
@@ -471,7 +490,7 @@ class Manager(tk.Canvas):
                         a_combined = (self.ax[idx_start] + self.ay[idx_start]) / 2
 
                     if idx_end == idx_start or ((idx_end < idx_start) and not self.bool_closedtrack):
-                        break
+                        continue
 
                     elif (idx_end < idx_start) and self.bool_closedtrack:
                         self.refline_manip[idx_end:idx_start, 3] = a_combined
@@ -502,7 +521,7 @@ class Manager(tk.Canvas):
                         local_scaling = (self.local_scaling_long[idx_start] + self.local_scaling_lat[idx_start]) / 2
 
                     if idx_end == idx_start or ((idx_end < idx_start) and not self.bool_closedtrack):
-                        break
+                        continue
 
                     elif (idx_end < idx_start) and self.bool_closedtrack:
                         self.refline_manip[idx_end:idx_start, 3] = local_scaling
@@ -542,13 +561,13 @@ class Manager(tk.Canvas):
 
         tpamap = np.hstack((refline_plot[:, :3], refline_plot[:, 4:]))
 
-        if self.gui_mode == 2:
-            ylabel = 'local acc. limit in m/s^2'
-        else:
-            ylabel = 'local scaling factor'
+        # if self.gui_mode == 2:
+        #     ylabel = 'local acc. limit in m/s^2'
+        # else:
+        #     ylabel = 'local scaling factor'
 
-        dict_plotinfo = {'bool_set_blocking': False,
-                         'ylabel': ylabel}
+        # dict_plotinfo = {'bool_set_blocking': False,
+        #                  'ylabel': ylabel}
 
         # generate main plot -------------------------------------------------------------------------------------------
 

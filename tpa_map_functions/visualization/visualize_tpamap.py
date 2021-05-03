@@ -73,6 +73,9 @@ def visualize_tpamap(refline: np.array,
         tpamap, vel_steps = tpa_map_functions.interface.import_vehdyninfo.\
             import_vehdyninfo(filepath2localgg=filepath2tpamap)
 
+        section_id = tpamap[:, 0]  # noqa F841
+        tpamap = tpamap[:, 1:]
+
     else:
         vel_steps = []
 
@@ -262,7 +265,7 @@ def visualize_tpamap(refline: np.array,
         ax1.plot(trackboundary_left_m[:, 0], trackboundary_left_m[:, 1], 'k')
 
         # plot reference line
-        ax1.plot(tpamap[:, 1], tpamap[:, 2], 'k', linestyle='None', marker='x', label='reference line - interp')
+        # ax1.plot(tpamap[:, 1], tpamap[:, 2], 'k', linestyle='None', marker=',', label='reference line - interp')
         ax1.plot(refline[:, 0], refline[:, 1], 'r', label='reference line')
 
         # plot s-coordinate labels

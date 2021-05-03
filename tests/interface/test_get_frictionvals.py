@@ -76,6 +76,8 @@ output_data = []
 
 while True:
 
+    delta_idx_tmp = delta_idx + np.random.randint(-20, 21)
+
     list_trajectories = []
     traj_scoord_m = []
     acc_lim = []
@@ -108,8 +110,8 @@ while True:
     for row in trajectory:
         traj_scoord_m.append(tph.path_matching_global.path_matching_global(coordinates_sxy_m, row)[0])
 
-    idx_start += delta_idx
-    idx_stop += delta_idx
+    idx_start += delta_idx_tmp
+    idx_stop += delta_idx_tmp
 
     # provide artificial velocity array for request
     arr_velocity_mps = np.full((trajectory.shape[0], 1), 20)
