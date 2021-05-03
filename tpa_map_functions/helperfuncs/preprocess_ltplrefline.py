@@ -1,8 +1,6 @@
 import numpy as np
 import logging
 import math
-from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
 
 """
 Created by: Leonhard Hermansdorfer
@@ -121,7 +119,8 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         # calculate lateral acceleration at raceline points
         ay_rl = kappa_rl * vel_rl**2
 
-        # TESTING - test an unclosed race track
+        # TESTING ------------------------------------------------------------------------------------------------------
+        # test an unclosed race track
         # idx_cut = 333
 
         # refline_coordinates = refline_coordinates[0:idx_cut, :]
@@ -134,6 +133,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         # vel_rl = vel_rl[0:idx_cut]
         # ax_rl = ax_rl[0:idx_cut]
         # ay_rl = ay_rl[0:idx_cut]
+        # TESTING End --------------------------------------------------------------------------------------------------
 
         # calculate coordinates of raceline
         xy = refline_coordinates + normvec_normalized * alpha_mincurv[:, np.newaxis]
@@ -202,89 +202,54 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
     # ------------------------------------------------------------------------------------------------------------------
 
     diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_concat[:, 1:3], axis=0) ** 2, axis=1))
+    diff_coordinates_m_mean = np.mean(diff_coordinates_m)
 
     dict_output['refline_resampled'] = dict()
 
     # resample reference line with constant step size ------------------------------------------------------------------
     if mode_resample_refline == "const_steps":
 
-        if stepsize_resample_m <= 0.1:
-            logger.warning("desired stepsize for reference line resampling is below threshold "
-                           + "-> proceed without resampled reference line")
+        # calculate stepsize as an index of reference line array
+        idx_resample = int(np.round(stepsize_resample_m / diff_coordinates_m_mean))
 
-        else:
+        # use original stepsize (idx = 1), if new stepsize would be zero
+        if np.isclose(idx_resample, 0, 1e-08):
+            idx_resample = 1
 
-            # check whether or not the provided stepsize is an even number; round to next int value if necessary
-            if stepsize_resample_m % 1 != 0:
-                logger.warning("resample stepsize has to be even! current value of stepsize_resample_m = "
-                               + str(stepsize_resample_m) + " m; continue with " + str(round(stepsize_resample_m))
-                               + " m")
+        str_log = str(stepsize_resample_m)
 
-                stepsize_resample_m = int(round(stepsize_resample_m))
+    else:
+        idx_resample = 1
+        str_log = str(np.around(diff_coordinates_m_mean * idx_resample, 3))
 
-                if np.isclose(stepsize_resample_m, 0, 1e-08):
-                    stepsize_resample_m += 1
+    # extract every idx coordinate
+    coordinates = refline_concat[::idx_resample, 1:3]
 
-            # check whether resampling is necessary or initial stepsize of raceline is already correct
-            if abs((max(abs(diff_coordinates_m)) - stepsize_resample_m)) <= 0.2:
-                refline_resampled = refline_concat
+    if not np.all(np.equal(coordinates[-1, :], refline_concat[-1, 1:3])):
+        coordinates = np.vstack((coordinates, refline_concat[-1, 1:3]))
 
-            else:
-                """ interpolation along a 2d curve
-                source: https://stackoverflow.com/questions/52014197/how-to-interpolate-a-2d-curve-in-python
-                """
+    diff_coordinates_m = np.sqrt(np.sum(np.diff(coordinates, axis=0) ** 2, axis=1))
 
-                # coordinates to interpolate
-                coordinates = refline_concat[:, 1:3]
+    s = np.concatenate(([0], np.cumsum(diff_coordinates_m)))
 
-                # linear length along the line:
-                distance = refline_concat[:, 0] / refline_concat[-1, 0]
+    refline_resampled = np.column_stack((s, coordinates))
 
-                steps = int(refline_concat[-1, 0] // stepsize_resample_m + 1)
+    logger.warning("resample stepsize has to match stepsize of given reference line! "
+                   + "desired stepsize = " + str_log + " m; "
+                   + "continue with a min/mean/max stepsize of "
+                   + str(np.around(np.min(diff_coordinates_m), 3)) + '/'
+                   + str(np.around(diff_coordinates_m_mean * idx_resample, 3)) + '/'
+                   + str(np.around(np.max(diff_coordinates_m), 3)) + " m")
 
-                alpha = np.linspace(0, 1, steps)
+    if mode_resample_refline == "const_steps":
+        section_id = np.arange(1, refline_resampled.shape[0] + 1)
 
-                if interpolation_method == 'test':
+        dict_output['refline_resampled']['section_id'] = section_id[:, np.newaxis]
 
-                    interpolated_points = {}
-
-                    # plot different interpolation methods for comparison
-                    # Interpolation for different methods:
-                    interpolations_methods = ['slinear', 'quadratic', 'cubic']
-                    for method in interpolations_methods:
-                        interpolator = interp1d(distance, coordinates, kind=method, axis=0)
-                        interpolated_points[method] = interpolator(alpha)
-
-                    # Graph:
-                    plt.figure(figsize=(7, 7))
-                    for method_name, curve in interpolated_points.items():
-                        plt.plot(*curve.T, '-', label=method_name)
-
-                    plt.plot(refline_concat[:, 1], refline_concat[:, 2], 'ok', label='original points')
-                    plt.axis('equal')
-                    plt.legend()
-                    plt.xlabel('x in meters')
-                    plt.ylabel('y in meters')
-
-                    plt.show()
-
-                    return dict()
-
-                else:
-                    interpolator = interp1d(distance, coordinates, kind=interpolation_method, axis=0)
-                    interpolated_points = interpolator(alpha)
-
-                # calculate distance between resampled reference line coordinates
-                diff_coordinates_m = np.sqrt(np.sum(np.diff(interpolated_points, axis=0) ** 2, axis=1))
-
-                s = np.concatenate(([0], np.cumsum(diff_coordinates_m)))
-
-                refline_resampled = np.column_stack((s, interpolated_points))
-
-            dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
+    dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
 
     # resample reference line with variable step size on basis of raceline ---------------------------------------------
-    elif mode_resample_refline == "var_steps":
+    if mode_resample_refline == "var_steps":
 
         ax_trigger = [0] * ax_rl.shape[0]
         ay_trigger = [0] * ay_rl.shape[0]
@@ -473,12 +438,21 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                 count = 1
                 prev = list_sectcat_sparse[i_count]
 
-        refline_resampled = refline_concat[indices, :]
+        # new
+        section_id = np.zeros(refline_concat.shape[0], dtype=int)
 
-        diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1))
+        for idx in np.arange(len(indices) - 1):
+            section_id[indices[idx]:indices[idx + 1]] = idx + 1
 
-        dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
+        section_id[-1] = section_id[-2] + 1
 
+        dict_output['refline_resampled']['section_id'] \
+            = ((section_id * 10 + np.abs(list_section_category)) * np.sign(list_section_category))[:, np.newaxis]
+
+        dict_output['refline_resampled']['sectionid_change'] \
+            = np.concatenate((np.asarray([True]), np.isclose(np.diff(section_id), 1, 1e-08)))
+
+        # calculate data for debug plots
         if bool_enable_debug:
             dict_output['refline_resampled'].update({'ax_mps2': ax_rl,
                                                      'ay_mps2': ay_rl,

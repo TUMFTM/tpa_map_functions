@@ -1,5 +1,4 @@
 import os.path
-import src
 import sys
 import tkinter as tk
 
@@ -8,6 +7,7 @@ path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0],
 sys.path.append(path2tmf)
 
 import tpa_map_functions as tmf
+import tpa_map_gui.src.build_GUI as build_GUI
 
 
 # User Input -----------------------------------------------------------------------------------------------------------
@@ -58,13 +58,13 @@ tk_root = tk.Tk()
 tk_root.title("Settings for local gg-scaling")
 tk_root.geometry('%dx%d+%d+%d' % (550, 450, 10, 10))
 
-manager = src.build_GUI.Manager(master=tk_root,
-                                refline_dict=refline_dict,
-                                refline_resampled=refline_dict['refline_resampled']['refline_resampled'],
-                                bool_closedtrack=refline_dict['bool_closedtrack'],
-                                filepath2output_tpamap=filepath2output_tpamap,
-                                gui_mode=gui_mode,
-                                csv_filename=name_refline,
-                                default=dict_settings)
+manager = build_GUI.Manager(master=tk_root,
+                            refline_dict=refline_dict,
+                            refline_resampled=refline_dict['refline_resampled']['refline_resampled'],
+                            bool_closedtrack=refline_dict['bool_closedtrack'],
+                            filepath2output_tpamap=filepath2output_tpamap,
+                            gui_mode=gui_mode,
+                            csv_filename=name_refline,
+                            default=dict_settings)
 
 tk_root.mainloop()

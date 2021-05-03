@@ -47,26 +47,29 @@ else:
                                section_length_limits_m=[section_length_min_m, section_length_max_m],
                                bool_enable_debug=bool_enable_debug)
 
+test = np.concatenate((output_data['refline_resampled']['section_id'],
+                       output_data['refline_resampled']['refline_resampled']), axis=1)
+
 if bool_enable_debug:
 
     refline_original = output_data['refline']
     refline_resampled = output_data['refline_resampled']['refline_resampled']
 
-    plt.figure(figsize=(7, 7))
-
-    plt.plot(refline_original[:, 1], refline_original[:, 2], 'k--', label='original reference line')
-    plt.plot(refline_original[:, 1], refline_original[:, 2], 'kx', label='original reference line')
-    plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'r', label='resampled reference line')
-    plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'ro', label='resampled reference line')
-
-    plt.axis('equal')
-    plt.legend()
-    plt.xlabel('x in meters')
-    plt.ylabel('y in meters')
-
-    plt.show(block=False)
-
     if mode_resample_refline == "const_steps":
+
+        plt.figure(figsize=(7, 7))
+
+        plt.plot(refline_original[:, 1], refline_original[:, 2], 'k--', label='original reference line')
+        plt.plot(refline_original[:, 1], refline_original[:, 2], 'kx', label='original reference line')
+        plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'r', label='resampled reference line')
+        plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'ro', label='resampled reference line')
+
+        plt.axis('equal')
+        plt.legend()
+        plt.xlabel('x in meters')
+        plt.ylabel('y in meters')
+
+        plt.show(block=False)
 
         # plot histogram containing distances between coordinate points
         plt.figure()
@@ -90,13 +93,31 @@ if bool_enable_debug:
 
     elif mode_resample_refline == "var_steps":
 
+        idxs_plot = output_data['refline_resampled']['sectionid_change']
+
+        plt.figure(figsize=(7, 7))
+
+        plt.plot(refline_original[:, 1], refline_original[:, 2], 'k--', label='original reference line')
+        plt.plot(refline_original[:, 1], refline_original[:, 2], 'kx', label='original reference line')
+        plt.plot(refline_resampled[:, 1][idxs_plot], refline_resampled[:, 2][idxs_plot], 'r',
+                 label='resampled reference line')
+        plt.plot(refline_resampled[:, 1][idxs_plot], refline_resampled[:, 2][idxs_plot], 'ro',
+                 label='resampled reference line')
+
+        plt.axis('equal')
+        plt.legend()
+        plt.xlabel('x in meters')
+        plt.ylabel('y in meters')
+
+        plt.show(block=False)
+
         plt.figure()
 
         ax1 = plt.subplot(2, 1, 1)
         ax1.plot(refline_original[:, 0], output_data['refline_resampled']['ax_mps2'], label="long. acc.")
         ax1.plot(refline_original[:, 0], output_data['refline_resampled']['ay_mps2'], label="lat. acc.")
 
-        for s in refline_resampled[:, 0]:
+        for s in refline_resampled[:, 0][idxs_plot]:
             plt.vlines(s, -10, 10, colors='k', linestyle='--')
 
         plt.grid()
@@ -106,16 +127,18 @@ if bool_enable_debug:
 
         ax2 = plt.subplot(2, 1, 2, sharex=ax1)
 
-        ax2.step(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ax_trigger'], 0.9),
+        ax2.step(refline_resampled[:, 0][idxs_plot],
+                 np.multiply(output_data['refline_resampled']['ax_trigger'][idxs_plot], 0.9),
                  where='post', linewidth=2.0, label="trigger: long. acc.")
-        ax2.step(refline_original[:, 0], np.multiply(output_data['refline_resampled']['ay_trigger'], 0.8),
+        ax2.step(refline_resampled[:, 0][idxs_plot],
+                 np.multiply(output_data['refline_resampled']['ay_trigger'][idxs_plot], 0.8),
                  where='post', linewidth=2.0, label="trigger: lat. acc.")
 
-        ax2.step(refline_original[:, 0],
+        ax2.step(refline_resampled[:, 0],
                  np.multiply(output_data['refline_resampled']['list_section_category'], 1.0), where='post',
                  linewidth=2.0, label="section type")
 
-        for s in refline_resampled[:, 0]:
+        for s in refline_resampled[:, 0][idxs_plot]:
             plt.vlines(s, -7, 7, colors='k', linestyle='--')
 
         plt.ylim([-7, 7])
