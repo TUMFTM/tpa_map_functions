@@ -98,16 +98,19 @@ class MapInterface:
             import_vehdyninfo(filepath2localgg=filepath2localgg)
 
         self.section_id = tpamap[:, 0]
-        self.coordinates_sxy_m = tpamap[:, 1:4]
 
         # set data mode to global variable or global constant for further processing
         if tpamap.shape[0] > 1:
             self.data_mode = 'global_variable'
             self.sectionid_change = np.concatenate((np.asarray([True]), np.diff(self.section_id) > 0))
-            self.__tpamap_cropped = self.coordinates_sxy_m[self.sectionid_change]
+            self.coordinates_sxy_orignal_m = tpamap[:, 1:4]
+            self.coordinates_sxy_m = self.coordinates_sxy_orignal_m[self.sectionid_change]
 
         else:
             self.data_mode = 'global_constant'
+            self.sectionid_change = np.asarray([True])
+            self.coordinates_sxy_orignal_m = tpamap[:, 1:4]
+            self.coordinates_sxy_m = tpamap[:, 1:4]
 
         # Check Localgg Data with Velocity Dependence ------------------------------------------------------------------
 
@@ -130,10 +133,10 @@ class MapInterface:
 
         # if true, add all local acc. limits including velocity dependence
         if self.__bool_enable_velocitydependence:
-            self.localgg_mps2 = tpamap[:, 4:]
+            self.localgg_mps2 = tpamap[self.sectionid_change, 4:]
 
         else:
-            self.localgg_mps2 = tpamap[:, 4:6]
+            self.localgg_mps2 = tpamap[self.sectionid_change, 4:6]
 
         # create separate localgg array for strategy updates
         self.localgg_strat_mps2 = self.localgg_mps2.copy()
@@ -325,7 +328,7 @@ class MapInterface:
             if position_mode == 'xy-cosy':
 
                 s_actual_m = tpa_map_functions.helperfuncs.transform_coordinates_xy2s.\
-                    transform_coordinates_xy2s(coordinates_sxy_m=self.coordinates_sxy_m,
+                    transform_coordinates_xy2s(coordinates_sxy_m=self.coordinates_sxy_orignal_m,
                                                position_m=position_m,
                                                s_tot_m=self.s_tot_m)
 
