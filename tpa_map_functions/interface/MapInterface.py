@@ -605,8 +605,10 @@ class MapInterface:
 
                 self.__localgg_lastupdate = data_tpainterface[0][:, 4:]
 
-                self.localgg_mps2 = self.insert_tpa_updates(array_to_update=self.localgg_mps2,
-                                                            array_data=self.__localgg_lastupdate)
+                # insert updates beyond current planning horizon of ltpl
+                self.insert_tpa_updates(array_to_update=self.localgg_mps2,
+                                        array_data=self.__localgg_lastupdate)
+                print(self.localgg_mps2)
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -648,7 +650,10 @@ class MapInterface:
             else:
                 array_to_update[idx_start:idx_end, :] = array_data[idx_start:idx_end, :]
 
-            return array_to_update.copy()
+            self.localgg_mps2 = array_to_update.copy()
+
+        else:
+            return
 
     # ------------------------------------------------------------------------------------------------------------------
 
