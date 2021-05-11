@@ -71,6 +71,9 @@ class MapInterface:
         self.coordinates_sxy_m_extended = np.zeros((1, 3))
         self.localgg_mps2 = np.zeros((1, 2))
 
+        # temporary scale factor, which is updated via self.scale_acclimits_lapwise()
+        self.__scalefactor_tmp = 1.0
+
         # contains latest received local acceleration limits
         self.__localgg_lastupdate = np.zeros((1, 2))
 
@@ -305,7 +308,7 @@ class MapInterface:
             localgg_mps2 = self.localgg_strat_mps2
 
         else:
-            localgg_mps2 = self.localgg_mps2
+            localgg_mps2 = self.localgg_mps2 * self.__scalefactor_tmp
 
         # calculate location-independent acceleration limits ('global constant') ---------------------------------------
         if self.data_mode == 'global_constant':
@@ -576,9 +579,18 @@ class MapInterface:
 
                 # check whether tpamap coordinates where already received
                 if not self.__bool_received_tpamap:
-                    self.coordinates_sxy_m = data_tpainterface[:, 1:4]
-                    self.section_id = data_tpainterface[:, 0]
+                    self.coordinates_sxy_m = data_tpainterface[0][:, 1:4]
+                    self.section_id = data_tpainterface[0][:, 0]
                     self.sectionid_change = np.concatenate((np.asarray([True]), np.diff(self.section_id) > 0))
+
+                    # check if data for velocity steps is available
+                    if np.all(data_tpainterface[1]):
+                        self.velocity_steps = data_tpainterface[1]
+                        self.__count_velocity_steps = int(len(self.velocity_steps))
+                        self.velocity_steps = np.hstack(([0.0], self.velocity_steps))
+
+                    else:
+                        self.velocity_steps = np.zeros(1)
 
                     self.format_rawtpamap()
 
@@ -589,7 +601,7 @@ class MapInterface:
                         self.localgg_mps2 = np.ones((self.coordinates_sxy_m.shape[0], 1)) * self.localgg_mps2
                         self.data_mode = 'global_variable'
 
-                self.__localgg_lastupdate = data_tpainterface[:, 4:6]
+                self.__localgg_lastupdate = data_tpainterface[0][:, 4:]
 
                 self.localgg_mps2 = self.insert_tpa_updates(array_to_update=self.localgg_mps2,
                                                             array_data=self.__localgg_lastupdate)
@@ -682,6 +694,35 @@ class MapInterface:
 
         else:
             self.bool_isactivate_strategy = bool_isactivate_strategy
+
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def scale_acclim_lapwise(self,
+                             lap_counter: int,
+                             laps_interp: list,
+                             s_current_m: float,
+                             s_total_m: float,
+                             scaling: list):
+        """Calculates linearly interpolated scaling factor for acceleration limits.
+
+        :param lap_counter:     number of current lap (first lap is expected with 0)
+        :type lap_counter:      int
+        :param laps_interp:     number of laps for interpolation: first entry = start lap, second entry = end lap
+        :type laps_interp:      list
+        :param s_current_m:     current position's s-coordinate
+        :type s_current_m:      float
+        :param s_total_m:       total length of racetrack
+        :type s_total_m:        float
+        :param scaling:         scale factors: first entry = start scaling, second entry = end scaling
+        :type scaling:          list
+        """
+
+        self.__scalefactor_tmp = np.interp(lap_counter * s_total_m + s_current_m,
+                                           np.asarray(laps_interp) * s_total_m,
+                                           scaling)
+
+        # print('lap_counter: {}, s_current_m: {}, scalefactor_tmp: {}'
+        #       .format(lap_counter, s_current_m, self.__scalefactor_tmp))
 
 
 # ----------------------------------------------------------------------------------------------------------------------
