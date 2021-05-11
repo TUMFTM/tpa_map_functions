@@ -579,9 +579,11 @@ class MapInterface:
 
                 # check whether tpamap coordinates where already received
                 if not self.__bool_received_tpamap:
-                    self.coordinates_sxy_m = data_tpainterface[0][:, 1:4]
                     self.section_id = data_tpainterface[0][:, 0]
                     self.sectionid_change = np.concatenate((np.asarray([True]), np.diff(self.section_id) > 0))
+
+                    self.coordinates_sxy_orignal_m = data_tpainterface[0][:, 1:4]
+                    self.coordinates_sxy_m = self.coordinates_sxy_orignal_m[self.sectionid_change]
 
                     # check if data for velocity steps is available
                     if np.all(data_tpainterface[1]):
@@ -608,7 +610,6 @@ class MapInterface:
                 # insert updates beyond current planning horizon of ltpl
                 self.insert_tpa_updates(array_to_update=self.localgg_mps2,
                                         array_data=self.__localgg_lastupdate)
-                print(self.localgg_mps2)
 
     # ------------------------------------------------------------------------------------------------------------------
 
