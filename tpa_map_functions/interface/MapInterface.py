@@ -579,9 +579,18 @@ class MapInterface:
 
                 # check whether tpamap coordinates where already received
                 if not self.__bool_received_tpamap:
-                    self.coordinates_sxy_m = data_tpainterface[:, 1:4]
-                    self.section_id = data_tpainterface[:, 0]
+                    self.coordinates_sxy_m = data_tpainterface[0][:, 1:4]
+                    self.section_id = data_tpainterface[0][:, 0]
                     self.sectionid_change = np.concatenate((np.asarray([True]), np.diff(self.section_id) > 0))
+
+                    # check if data for velocity steps is available
+                    if np.all(data_tpainterface[1]):
+                        self.velocity_steps = data_tpainterface[1]
+                        self.__count_velocity_steps = int(len(self.velocity_steps))
+                        self.velocity_steps = np.hstack(([0.0], self.velocity_steps))
+
+                    else:
+                        self.velocity_steps = np.zeros(1)
 
                     self.format_rawtpamap()
 
@@ -592,7 +601,7 @@ class MapInterface:
                         self.localgg_mps2 = np.ones((self.coordinates_sxy_m.shape[0], 1)) * self.localgg_mps2
                         self.data_mode = 'global_variable'
 
-                self.__localgg_lastupdate = data_tpainterface[:, 4:6]
+                self.__localgg_lastupdate = data_tpainterface[0][:, 4:]
 
                 self.localgg_mps2 = self.insert_tpa_updates(array_to_update=self.localgg_mps2,
                                                             array_data=self.__localgg_lastupdate)
