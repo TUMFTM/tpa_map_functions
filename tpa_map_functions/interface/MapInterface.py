@@ -591,6 +591,7 @@ class MapInterface:
 
                     else:
                         self.velocity_steps = np.zeros(1)
+                        self.__count_velocity_steps = 1
 
                     self.format_rawtpamap()
 
@@ -598,7 +599,8 @@ class MapInterface:
 
                     # if current data mode is global_constant and data is received, switch to global_variable
                     if self.data_mode == 'global_constant':
-                        self.localgg_mps2 = np.ones((self.coordinates_sxy_m.shape[0], 1)) * self.localgg_mps2
+                        self.localgg_mps2 = np.full((self.coordinates_sxy_m.shape[0], self.__count_velocity_steps * 2),
+                                                    np.tile(self.localgg_mps2, self.__count_velocity_steps))
                         self.data_mode = 'global_variable'
 
                 self.__localgg_lastupdate = data_tpainterface[0][:, 4:]
