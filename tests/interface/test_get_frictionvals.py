@@ -24,7 +24,7 @@ trackname = 'berlin'
 tpamap_name = "tpamap_varloc_varvel_berlin"
 
 updateFrequency = 100
-laps_to_go = 1
+laps_to_go = 5
 s_terminate_m = 800
 bool_plot = True
 
@@ -34,12 +34,15 @@ bool_plot = True
 idx_stop = 100
 
 # index shift between each request (simulates a driving vehicle)
-delta_idx = 80
+delta_idx = 20
 
 # tpa interface settings
 bool_enable_interface2tpa = False
 bool_enable_interpolation = True
 bool_enable_velocitydependence = True
+
+# enable lapwise scaling of acceleration limits
+bool_apply_acclimit_scaling = True
 
 # tpa zmq settings
 zmq_opts = {"ip": "localhost",  # IP of device running map interface
@@ -54,7 +57,8 @@ filepath2ltpl_refline = os.path.join(path2module, 'inputs', 'traj_ltpl_cl', 'tra
 
 # load reference line from file
 dict_refline = tpa_map_functions.helperfuncs.preprocess_ltplrefline.\
-    preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline)
+    preprocess_ltplrefline(filepath2ltpl_refline=filepath2ltpl_refline,
+                           stepsize_resample_m=50.0)
 
 coordinates_sxy_m = dict_refline['refline']
 refline = dict_refline['refline'][:, 1:3]
@@ -114,8 +118,16 @@ while True:
     idx_stop += delta_idx_tmp
 
     # provide artificial velocity array for request
-    arr_velocity_mps = np.full((trajectory.shape[0], 1), 20)
+    arr_velocity_mps = np.full((trajectory.shape[0], 1), 55)
     # arr_velocity_mps = np.linspace(0, 94, trajectory.shape[0])[:, np.newaxis]
+
+    # apply lapwise scaling of acceleration limits
+    if bool_apply_acclimit_scaling:
+        myInterface.scale_acclim_lapwise(lap_counter=lapcounter,
+                                         laps_interp=[1, 4],
+                                         s_current_m=traj_scoord_m[0],
+                                         s_total_m=coordinates_sxy_m[-1, 0],
+                                         scaling=[1.0, 0.6])
 
     # save start time
     t_start = time.perf_counter()

@@ -71,6 +71,9 @@ class MapInterface:
         self.coordinates_sxy_m_extended = np.zeros((1, 3))
         self.localgg_mps2 = np.zeros((1, 2))
 
+        # temporary scale factor, which is updated via self.scale_acclimits_lapwise()
+        self.__scalefactor_tmp = 1.0
+
         # contains latest received local acceleration limits
         self.__localgg_lastupdate = np.zeros((1, 2))
 
@@ -305,7 +308,7 @@ class MapInterface:
             localgg_mps2 = self.localgg_strat_mps2
 
         else:
-            localgg_mps2 = self.localgg_mps2
+            localgg_mps2 = self.localgg_mps2 * self.__scalefactor_tmp
 
         # calculate location-independent acceleration limits ('global constant') ---------------------------------------
         if self.data_mode == 'global_constant':
@@ -682,6 +685,35 @@ class MapInterface:
 
         else:
             self.bool_isactivate_strategy = bool_isactivate_strategy
+
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def scale_acclim_lapwise(self,
+                             lap_counter: int,
+                             laps_interp: list,
+                             s_current_m: float,
+                             s_total_m: float,
+                             scaling: list):
+        """Calculates linearly interpolated scaling factor for acceleration limits.
+
+        :param lap_counter:     number of current lap (first lap is expected with 0)
+        :type lap_counter:      int
+        :param laps_interp:     number of laps for interpolation: first entry = start lap, second entry = end lap
+        :type laps_interp:      list
+        :param s_current_m:     current position's s-coordinate
+        :type s_current_m:      float
+        :param s_total_m:       total length of racetrack
+        :type s_total_m:        float
+        :param scaling:         scale factors: first entry = start scaling, second entry = end scaling
+        :type scaling:          list
+        """
+
+        self.__scalefactor_tmp = np.interp(lap_counter * s_total_m + s_current_m,
+                                           np.asarray(laps_interp) * s_total_m,
+                                           scaling)
+
+        # print('lap_counter: {}, s_current_m: {}, scalefactor_tmp: {}'
+        #       .format(lap_counter, s_current_m, self.__scalefactor_tmp))
 
 
 # ----------------------------------------------------------------------------------------------------------------------
