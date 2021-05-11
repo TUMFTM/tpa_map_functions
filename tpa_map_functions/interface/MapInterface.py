@@ -8,7 +8,7 @@ import ad_interface_functions
 path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 sys.path.append(path2tmf)
 
-import tpa_map_functions.interface.import_vehdyninfo
+import tpa_map_functions.helperfuncs.import_vehdyninfo
 
 """
 Created by: Leonhard Hermansdorfer
@@ -97,7 +97,7 @@ class MapInterface:
         # Read Data File Containing Tire Performance Assessment Map ----------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        tpamap, velocity_steps = tpa_map_functions.interface.import_vehdyninfo.\
+        tpamap, velocity_steps = tpa_map_functions.helperfuncs.import_vehdyninfo.\
             import_vehdyninfo(filepath2localgg=filepath2localgg)
 
         self.section_id = tpamap[:, 0]
