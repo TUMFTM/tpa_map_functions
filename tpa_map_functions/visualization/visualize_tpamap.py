@@ -12,7 +12,7 @@ from matplotlib.widgets import Slider
 path2tmf = os.path.join(os.path.abspath(__file__).split('tpa_map_functions')[0], 'tpa_map_functions')
 sys.path.append(path2tmf)
 
-import tpa_map_functions.interface.import_vehdyninfo
+import tpa_map_functions.helperfuncs.import_vehdyninfo
 
 """
 Created by: Leonhard Hermansdorfer
@@ -70,7 +70,7 @@ def visualize_tpamap(refline: np.array,
 
     # load tpamap data from file
     if bool(filepath2tpamap):
-        tpamap, vel_steps = tpa_map_functions.interface.import_vehdyninfo.\
+        tpamap, vel_steps = tpa_map_functions.helperfuncs.import_vehdyninfo.\
             import_vehdyninfo(filepath2localgg=filepath2tpamap)
 
         section_id = tpamap[:, 0]  # noqa F841

@@ -1,6 +1,7 @@
 import tpa_map_functions.helperfuncs.calc_cosyidcs
 import tpa_map_functions.helperfuncs.concat_tpamaps_ltpl
 import tpa_map_functions.helperfuncs.concat_tpamaps_vehdynsim
+import tpa_map_functions.helperfuncs.import_vehdyninfo
 import tpa_map_functions.helperfuncs.preprocess_ltplrefline
 import tpa_map_functions.helperfuncs.save_tpamap
 import tpa_map_functions.helperfuncs.transform_coordinates_xy2s
