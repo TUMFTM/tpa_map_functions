@@ -148,10 +148,14 @@ class MapInterface:
         if self.data_mode == 'global_variable' and not self.__bool_enable_interface2tpa:
             self.format_rawtpamap()
 
-        elif self.data_mode == 'global_variable' and self.__bool_enable_interface2tpa:
-            raise FileExistsError('localgg file in inputs/veh_dyn_info does contain multiple entries. ',
-                                  'This is not allowed when interface to tpa module is enabled. ',
-                                  'Only put one row with initial values in file.')
+        # check whether tpa-map file contains only one row (const. location)
+        # and one value for each ax and ay (const. vel)
+        if self.__bool_enable_interface2tpa and not (self.data_mode == 'global_constant'
+                                                     and self.__count_velocity_steps == 1):
+            raise ValueError('tpa-map file in inputs/veh_dyn_info has wrong shape!\n'
+                             + 'When interface to tpa module is enabled, only provide one row of data and no '
+                             + 'velocity-dependent acceleraion limits!\n'
+                             + 'Shape of input data must be 1x6')
 
         # --------------------------------------------------------------------------------------------------------------
         # Initialize Communication: ZMQ --------------------------------------------------------------------------------
@@ -252,8 +256,13 @@ class MapInterface:
 
         # check if velocity dependence is enabled and velocity values are provided
         if not self.__bool_enable_velocitydependence and velocity_mps.size != 0:
-            raise ValueError('TPA MapInterface: velocity for velocity dependent acc. limits request is provided, but '
-                             'velocity dependence is disbaled!')
+
+            if not self.__bool_enable_interface2tpa:
+                raise ValueError('TPA MapInterface: velocity for velocity dependent acc. limits request is provided, '
+                                 + 'but velocity dependence is disbaled!')
+            else:
+                print('TPA MapInterface: WARNING: velocity for velocity dependent acc. limits request is provided, '
+                      + 'but MapInterface has not received a velocity-dependent tpa-map!')
 
         if self.__bool_enable_velocitydependence and velocity_mps.size == 0:
             raise ValueError('TPA MapInterface: velocity dependence is enabled, but no velocity is provided for '
@@ -517,7 +526,7 @@ class MapInterface:
         Input
         :param x:           velocity steps for which the acceleration limits are requested
         :type x: np.array
-        :param xp:          velocity steps of the tpa-amp (velocity where accelertion limits are provided)
+        :param xp:          velocity steps of the tpa-map (velocity where accelertion limits are provided)
         :type xp: np.array
         :param fp:          acceleration limits used for interpolation
         :type fp: np.array
@@ -590,10 +599,12 @@ class MapInterface:
                         self.velocity_steps = data_tpainterface[1]
                         self.__count_velocity_steps = int(len(self.velocity_steps))
                         self.velocity_steps = np.hstack(([0.0], self.velocity_steps))
+                        self.__bool_enable_velocitydependence = True
 
                     else:
                         self.velocity_steps = np.zeros(1)
                         self.__count_velocity_steps = 1
+                        self.__bool_enable_velocitydependence = False
 
                     self.format_rawtpamap()
 
@@ -605,7 +616,7 @@ class MapInterface:
                                                     np.tile(self.localgg_mps2, self.__count_velocity_steps))
                         self.data_mode = 'global_variable'
 
-                self.__localgg_lastupdate = data_tpainterface[0][:, 4:]
+                self.__localgg_lastupdate = data_tpainterface[0][:, 4:][self.sectionid_change]
 
                 # insert updates beyond current planning horizon of ltpl
                 self.insert_tpa_updates(array_to_update=self.localgg_mps2,
