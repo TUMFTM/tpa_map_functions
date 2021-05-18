@@ -187,66 +187,63 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                        'normvec_normalized': normvec_normalized}
 
     # use reference line instead of raceline for further calculation
-    s_refline_m = np.cumsum(np.sqrt(np.sum((np.square(np.diff(refline[:, 0])),
-                                            np.square(np.diff(refline[:, 1]))), axis=0)))
+    diff_coordinates_m = np.sqrt(np.sum(np.diff(refline, axis=0) ** 2, axis=1))
 
+    s_refline_m = np.cumsum(diff_coordinates_m)
     s_refline_m = np.vstack((np.zeros(1), s_refline_m[:, np.newaxis]))
 
-    refline_concat = np.hstack((s_refline_m, refline))
+    refline_sxy = np.hstack((s_refline_m, refline))
 
-    dict_output['refline'] = refline_concat
+    dict_output['refline'] = refline_sxy
     dict_output['bool_closedtrack'] = bool_closedtrack
 
     # ------------------------------------------------------------------------------------------------------------------
     # Resample Reference Line ------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    diff_coordinates_m = np.sqrt(np.sum(np.diff(refline_concat[:, 1:3], axis=0) ** 2, axis=1))
-    diff_coordinates_m_mean = np.mean(diff_coordinates_m)
-
     dict_output['refline_resampled'] = dict()
+    dict_output['refline_resampled'].update({'refline_resampled': refline_sxy})
 
     # resample reference line with constant step size ------------------------------------------------------------------
     if mode_resample_refline == "const_steps":
 
-        # calculate stepsize as an index of reference line array
-        idx_resample = int(np.round(stepsize_resample_m / diff_coordinates_m_mean))
-
-        # use original stepsize (idx = 1), if new stepsize would be zero
-        if np.isclose(idx_resample, 0, 1e-08):
-            idx_resample = 1
-
         str_log = str(stepsize_resample_m)
+        diff_coordinates_m_mean = np.mean(diff_coordinates_m)
 
-    else:
-        idx_resample = 1
-        str_log = str(np.around(diff_coordinates_m_mean * idx_resample, 3))
+        # enforce usage of min. stepsize if desired stepsize is smaller
+        if stepsize_resample_m < diff_coordinates_m_mean:
+            stepsize_resample_m = int(np.round(diff_coordinates_m_mean))
 
-    # extract every idx coordinate
-    coordinates = refline_concat[::idx_resample, 1:3]
+        count = 1
+        idx_prev = 0
+        section_id = np.zeros(refline_sxy.shape[0])
 
-    if not np.all(np.equal(coordinates[-1, :], refline_concat[-1, 1:3])):
-        coordinates = np.vstack((coordinates, refline_concat[-1, 1:3]))
+        # assign same section id to every s-coordinate which lies between start and end coordinate of specific section
+        while stepsize_resample_m * count < refline_sxy[-1, 0]:
 
-    diff_coordinates_m = np.sqrt(np.sum(np.diff(coordinates, axis=0) ** 2, axis=1))
+            idx_tmp = np.argmin(np.abs(refline_sxy[:, 0] - stepsize_resample_m * count))
+            section_id[idx_prev:idx_tmp] = count
+            idx_prev = idx_tmp
+            count += 1
 
-    s = np.concatenate(([0], np.cumsum(diff_coordinates_m)))
+        # fill last section entries which are smaller than required stepsize
+        if idx_tmp < refline_sxy.shape[0]:
+            section_id[idx_tmp:] = count
 
-    refline_resampled = np.column_stack((s, coordinates))
+        # last section id entry has to be a new value
+        section_id[-1] = section_id[-2] + 1
 
-    logger.warning("resample stepsize has to match stepsize of given reference line! "
-                   + "desired stepsize = " + str_log + " m; "
-                   + "continue with a min/mean/max stepsize of "
-                   + str(np.around(np.min(diff_coordinates_m), 3)) + '/'
-                   + str(np.around(diff_coordinates_m_mean * idx_resample, 3)) + '/'
-                   + str(np.around(np.max(diff_coordinates_m), 3)) + " m")
+        # calc min/mean/max values for debugging
+        print_info = refline_sxy[np.concatenate((np.asarray([True]), np.isclose(np.diff(section_id), 1, 1e-08))), 0]
 
-    if mode_resample_refline == "const_steps":
-        section_id = np.arange(1, refline_resampled.shape[0] + 1)
+        logger.warning("resample stepsize has to match stepsize of given reference line! "
+                       + "desired stepsize = " + str_log + " m; "
+                       + "continue with a min/mean/max stepsize of "
+                       + str(np.around(np.min(np.diff(print_info)), 3)) + '/'
+                       + str(np.around(np.mean(np.diff(print_info)), 3)) + '/'
+                       + str(np.around(np.max(np.diff(print_info)), 3)) + " m")
 
         dict_output['refline_resampled']['section_id'] = section_id[:, np.newaxis]
-
-    dict_output['refline_resampled'].update({'refline_resampled': refline_resampled})
 
     # resample reference line with variable step size on basis of raceline ---------------------------------------------
     if mode_resample_refline == "var_steps":
@@ -404,7 +401,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
             list_section_category.append(section_category)
 
         indices.insert(0, 0)
-        indices.append(refline_concat.shape[0] - 1)
+        indices.append(refline_sxy.shape[0] - 1)
         list_sectcat_sparse.insert(0, list_section_category[0])
         list_sectcat_sparse.append(100)
 
@@ -419,16 +416,16 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
 
             elif count > 1 and (list_sectcat_sparse[i_count] != prev or i_count == len(list_sectcat_sparse) - 1):
                 logger.debug("number of consecutive sections of type {}: {} sections".format(prev, count))
-                logger.debug("sections start at {} m, end at {}".format(refline_concat[indices[i_count - count], 0],
-                                                                        refline_concat[indices[i_count], 0]))
+                logger.debug("sections start at {} m, end at {}".format(refline_sxy[indices[i_count - count], 0],
+                                                                        refline_sxy[indices[i_count], 0]))
 
-                interp = np.linspace(refline_concat[indices[i_count - count], 0],
-                                     refline_concat[indices[i_count], 0],
+                interp = np.linspace(refline_sxy[indices[i_count - count], 0],
+                                     refline_sxy[indices[i_count], 0],
                                      count + 1)
 
                 # calculate indices which should be used for interpolated sections
                 for j_count in range(1, len(interp)):
-                    idx = np.argmin(np.abs(refline_concat[:, 0] - interp[j_count]))
+                    idx = np.argmin(np.abs(refline_sxy[:, 0] - interp[j_count]))
                     indices[i_count - count + j_count] = idx
 
                 count = 1
@@ -439,7 +436,7 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                 prev = list_sectcat_sparse[i_count]
 
         # new
-        section_id = np.zeros(refline_concat.shape[0], dtype=int)
+        section_id = np.zeros(refline_sxy.shape[0], dtype=int)
 
         for idx in np.arange(len(indices) - 1):
             section_id[indices[idx]:indices[idx + 1]] = idx + 1
@@ -449,9 +446,6 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
         dict_output['refline_resampled']['section_id'] \
             = ((section_id * 10 + np.abs(list_section_category)) * np.sign(list_section_category))[:, np.newaxis]
 
-        dict_output['refline_resampled']['sectionid_change'] \
-            = np.concatenate((np.asarray([True]), np.isclose(np.diff(section_id), 1, 1e-08)))
-
         # calculate data for debug plots
         if bool_enable_debug:
             dict_output['refline_resampled'].update({'ax_mps2': ax_rl,
@@ -460,12 +454,17 @@ def preprocess_ltplrefline(filepath2ltpl_refline: str = str(),
                                                      'ay_trigger': ay_trigger,
                                                      'list_section_category': list_section_category})
 
+    dict_output['refline_resampled']['sectionid_change'] \
+        = np.concatenate((np.asarray([True]), np.isclose(np.diff(section_id), 1, 1e-08)))
+
     if mode_resample_refline in ["const_steps", "var_steps"] and bool_enable_debug:
 
-        mean_diff_m = np.mean(diff_coordinates_m)
-        min_diff_m = np.min(diff_coordinates_m)
-        max_diff_m = np.max(diff_coordinates_m)
-        std_diff_m = np.std(diff_coordinates_m)
+        diff_refline_resampled_m = np.diff(refline_sxy[dict_output['refline_resampled']['sectionid_change'], 0])
+
+        mean_diff_m = np.mean(diff_refline_resampled_m)
+        min_diff_m = np.min(diff_refline_resampled_m)
+        max_diff_m = np.max(diff_refline_resampled_m)
+        std_diff_m = np.std(diff_refline_resampled_m)
 
         logger.debug('mean distance between coordinates: ' + str(round(mean_diff_m, 3)) + ' m; '
                      + 'min. distance between coordinates: ' + str(round(min_diff_m, 3)) + ' m; '
