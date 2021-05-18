@@ -605,7 +605,7 @@ class MapInterface:
                                                     np.tile(self.localgg_mps2, self.__count_velocity_steps))
                         self.data_mode = 'global_variable'
 
-                self.__localgg_lastupdate = data_tpainterface[0][:, 4:]
+                self.__localgg_lastupdate = data_tpainterface[0][:, 4:][self.sectionid_change]
 
                 # insert updates beyond current planning horizon of ltpl
                 self.insert_tpa_updates(array_to_update=self.localgg_mps2,
