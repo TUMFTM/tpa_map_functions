@@ -11,9 +11,10 @@ import tpa_map_functions as tmf
 
 # User Input -------------------------------------------------------------------------------------------------------
 
-track_name = 'berlin'
+track_name = 'modena'
 bool_enable_debug = True
 
+# mode for resampling reference line, options: "const_steps", "var_steps"
 mode_resample_refline = 'var_steps'
 stepsize_resample_m = 11.11
 section_length_min_m = 15
@@ -55,14 +56,18 @@ if bool_enable_debug:
     refline_original = output_data['refline']
     refline_resampled = output_data['refline_resampled']['refline_resampled']
 
+    idxs_plot = output_data['refline_resampled']['sectionid_change']
+
     if mode_resample_refline == "const_steps":
 
         plt.figure(figsize=(7, 7))
 
         plt.plot(refline_original[:, 1], refline_original[:, 2], 'k--', label='original reference line')
         plt.plot(refline_original[:, 1], refline_original[:, 2], 'kx', label='original reference line')
-        plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'r', label='resampled reference line')
-        plt.plot(refline_resampled[:, 1], refline_resampled[:, 2], 'ro', label='resampled reference line')
+        plt.plot(refline_resampled[:, 1][idxs_plot], refline_resampled[:, 2][idxs_plot],
+                 'r', label='resampled reference line')
+        plt.plot(refline_resampled[:, 1][idxs_plot], refline_resampled[:, 2][idxs_plot],
+                 'ro', label='resampled reference line')
 
         plt.axis('equal')
         plt.legend()
@@ -71,29 +76,7 @@ if bool_enable_debug:
 
         plt.show(block=False)
 
-        # plot histogram containing distances between coordinate points
-        plt.figure()
-
-        plt.hist(np.sqrt(np.sum(np.diff(refline_resampled[:, 1:3], axis=0) ** 2, axis=1)), bins=20)
-
-        plt.axvline(x=output_data['refline_resampled']['mean_diff_m'], color='g', label='mean')
-        plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
-                    + output_data['refline_resampled']['std_diff_m']), color='y', label='stand.dev.')
-        plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
-                    - output_data['refline_resampled']['std_diff_m']), color='y')
-        plt.axvline(x=output_data['refline_resampled']['min_diff_m'], color='r', label='min/max')
-        plt.axvline(x=output_data['refline_resampled']['max_diff_m'], color='r')
-
-        plt.legend()
-        plt.grid()
-        plt.xlabel('distance between reference line coordinate points in meters')
-        plt.ylabel('bin count')
-
-        plt.show()
-
     elif mode_resample_refline == "var_steps":
-
-        idxs_plot = output_data['refline_resampled']['sectionid_change']
 
         plt.figure(figsize=(7, 7))
 
@@ -148,4 +131,24 @@ if bool_enable_debug:
         plt.ylabel("section type")
 
         plt.legend()
-        plt.show()
+        plt.show(block=False)
+
+    # plot histogram containing distances between coordinate points
+    plt.figure()
+
+    plt.hist(np.diff(refline_resampled[:, 0][idxs_plot]), bins=25, histtype='bar', align='mid', rwidth=0.8)
+
+    plt.axvline(x=output_data['refline_resampled']['mean_diff_m'], color='g', label='mean')
+    plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
+                + output_data['refline_resampled']['std_diff_m']), color='y', label='stand.dev.')
+    plt.axvline(x=(output_data['refline_resampled']['mean_diff_m']
+                - output_data['refline_resampled']['std_diff_m']), color='y')
+    plt.axvline(x=output_data['refline_resampled']['min_diff_m'], color='r', label='min/max')
+    plt.axvline(x=output_data['refline_resampled']['max_diff_m'], color='r')
+
+    plt.legend()
+    plt.grid()
+    plt.xlabel('distance between reference line coordinate points in meters')
+    plt.ylabel('bin count')
+
+    plt.show()
