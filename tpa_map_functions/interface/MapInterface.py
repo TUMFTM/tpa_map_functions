@@ -595,7 +595,7 @@ class MapInterface:
                     self.coordinates_sxy_m = self.coordinates_sxy_orignal_m[self.sectionid_change]
 
                     # check if data for velocity steps is available
-                    if np.all(data_tpainterface[1]):
+                    if np.all(data_tpainterface[1]) and len(data_tpainterface[1]) > 0:
                         self.velocity_steps = data_tpainterface[1]
                         self.__count_velocity_steps = int(len(self.velocity_steps))
                         self.velocity_steps = np.hstack(([0.0], self.velocity_steps))
