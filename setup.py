@@ -11,7 +11,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='tpa_map_functions',
-    version='0.15',
+    version='0.16',
     url='https://github.com/TUMFTM',
     author="Leonhard Hermansdorfer",
     author_email="leo.hermansdorfer@tum.de",
