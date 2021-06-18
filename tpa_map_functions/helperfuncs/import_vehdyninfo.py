@@ -10,11 +10,11 @@ def import_vehdyninfo(filepath2localgg: str = "") -> np.ndarray:
     """
     .. description::
     This function imports the local acceleration limits specified by a 'localgg' file and checks validity of the
-    imported data. The file contains the s-, x- and y-coordinates of the underlying reference line and the
+    imported data. The file contains the sectionID, s-, x- and y-coordinates of the underlying reference line and the
     corresponding acceleration limits in longitudinal and lateral direction. The file consists of a single row,
     which results in a constant acceleration limit for the whole racetrack, or of multiple rows, which results in
     location-dependent accelerations limits.
-    The file format is [s_m, x_m, y_m, ax_max_mps2, ay_max_mps2] with units [m, m, m, m/s^2, m/s^2].
+    The file format is [sectionID, s_m, x_m, y_m, ax_max_mps2, ay_max_mps2] with units [-, m, m, m, m/s^2, m/s^2].
 
     .. inputs::
     :param filepath2localgg:    absolute path to 'localgg' file which contains vehicle acceleration limits
