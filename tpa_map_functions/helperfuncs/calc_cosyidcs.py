@@ -32,7 +32,7 @@ def calc_cosyidcs(sectionid: np.array,
 
         s_actual_m[a] = s_actual_m[idx_min]
 
-    sectionid_change = np.concatenate((np.asarray([True]), np.diff(sectionid) > 0))
+    sectionid_change = np.concatenate((np.asarray([True]), np.diff(sectionid) != 0))
     coordinates_sxy_m = coordinates_sxy_m[sectionid_change]
 
     i = np.searchsorted(coordinates_sxy_m[:, 0], s_actual_m, side='right') - 1
