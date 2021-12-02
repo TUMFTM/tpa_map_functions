@@ -32,7 +32,7 @@ def transform_coordinates_xy2s(coordinates_sxy_m: np.array,
     # after timing, this seems to be faster than version below
     for index, row in enumerate(s_actual_m):
         if row >= s_tot_m:
-            s_actual_m[index] -= s_tot_m
+            s_actual_m[index] -= s_tot_m * np.floor(row / s_tot_m)
         elif row < 0:
             s_actual_m[index] += s_tot_m
 
